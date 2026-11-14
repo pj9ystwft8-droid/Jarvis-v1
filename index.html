@@ -1,1 +1,212 @@
-hello
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<meta name="theme-color" content="#071018">
+<title>Jarvis</title>
+<style>
+:root{--bg:#071018;--panel:#0e1b27;--line:#1c3345;--ink:#e6f3fb;--dim:#7f9bb0;--arc:#6fd3ff;--warn:#ffb454}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+h1{font:600 20px/1 Georgia,serif;letter-spacing:.08em;margin:0}
+header button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 12px;font-size:14px}
+#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:86%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
+.me{align-self:flex-end;background:var(--line)}
+.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.src{display:block;color:var(--arc);font-size:13px;margin-top:6px}
+.sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
+.alt{margin-top:8px;background:none;border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:14px}
+#bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+#txt{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
+#txt:focus{border-color:var(--arc)}
+#send{background:none;border:none;color:var(--arc);font-size:16px;padding:8px}
+#mic{width:48px;height:48px;border-radius:50%;border:2px solid var(--arc);background:var(--panel);color:var(--arc);font-size:20px}
+#mic.on{background:var(--arc);color:var(--bg);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(111,211,255,.2)}}
+@media (prefers-reduced-motion:reduce){#mic.on{animation:none}}
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;width:min(92vw,420px)}
+dialog label{display:block;margin:10px 0 4px;color:var(--dim);font-size:14px}
+dialog input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:16px}
+dialog .row{display:flex;gap:8px;margin-top:16px}
+dialog button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px}
+dialog button.go{background:var(--arc);color:var(--bg);border-color:var(--arc)}
+dialog p{font-size:13px;color:var(--dim);margin:12px 0 0}
+</style>
+</head>
+<body>
+<header><h1>JARVIS</h1><button id="cfg">Settings</button></header>
+<main id="log" aria-live="polite"></main>
+<div id="bar">
+  <button id="mic" aria-label="Speak">&#127908;</button>
+  <input id="txt" placeholder="Ask Jarvis, or say “remind me in 10 minutes to…”" autocomplete="off">
+  <button id="send">Send</button>
+</div>
+
+<dialog id="dlg">
+  <strong>Settings</strong>
+  <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
+  <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
+  <label for="gm">Gemini model</label><input id="gm" value="gemini-2.5-flash">
+  <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
+  <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
+  <div class="row"><button id="cancel">Close</button><button id="save" class="go">Save</button></div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const log = $('log'), txt = $('txt'), dlg = $('dlg');
+const store = {
+  get(k, d){ try { return localStorage.getItem(k) || d } catch(e){ return d } },
+  set(k, v){ try { localStorage.setItem(k, v) } catch(e){} }
+};
+const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: store.get('gm','gemini-2.5-flash'), om: store.get('om','gpt-4o-mini') });
+let history = [];
+
+function add(cls, text, source){
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  if (source){ const s = document.createElement('span'); s.className = 'src'; s.textContent = 'Answered by ' + source; d.appendChild(s); }
+  log.appendChild(d); log.scrollTop = log.scrollHeight;
+  return d;
+}
+function say(text){
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text.slice(0, 600));
+  u.lang = 'en-US'; u.rate = 1.02;
+  speechSynthesis.speak(u);
+}
+
+/* ---------- AI calls ---------- */
+const SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences unless asked for more.';
+
+async function askGemini(q){
+  const c = cfg();
+  const contents = history.concat([{ role:'user', text:q }]).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ systemInstruction:{ parts:[{ text:SYSTEM }] }, contents })
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
+  return j.candidates[0].content.parts.map(p => p.text || '').join('');
+}
+async function askOpenAI(q){
+  const c = cfg();
+  const messages = [{ role:'system', content:SYSTEM }].concat(history.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content:m.text })), [{ role:'user', content:q }]);
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + c.ok},
+    body: JSON.stringify({ model:c.om, messages })
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j.error && j.error.message) || 'OpenAI error');
+  return j.choices[0].message.content;
+}
+async function referee(q, a, b){
+  // Gemini judges which answer is stronger: returns "A" or "B"
+  const c = cfg();
+  const prompt = 'Question: ' + q + '\n\nAnswer A:\n' + a + '\n\nAnswer B:\n' + b + '\n\nWhich answer is more accurate and helpful? Reply with the single letter A or B.';
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:prompt }] }] })
+    });
+    const j = await r.json();
+    return /B/i.test(j.candidates[0].content.parts[0].text) ? 'B' : 'A';
+  } catch(e){ return 'A'; }
+}
+
+async function think(q){
+  const c = cfg();
+  if (!c.gk && !c.ok){ const m = 'Sir, I need at least one API key. Tap Settings to add it.'; add('ai', m); say(m); return; }
+  const wait = add('sys', 'Thinking…');
+  try {
+    let best, other, bestName, otherName;
+    if (c.gk && c.ok){
+      const [g, o] = await Promise.allSettled([askGemini(q), askOpenAI(q)]);
+      if (g.status === 'rejected' && o.status === 'rejected') throw g.reason;
+      if (g.status === 'rejected'){ best = o.value; bestName = 'ChatGPT'; }
+      else if (o.status === 'rejected'){ best = g.value; bestName = 'Gemini'; }
+      else {
+        const pick = await referee(q, g.value, o.value);
+        if (pick === 'A'){ best = g.value; bestName = 'Gemini'; other = o.value; otherName = 'ChatGPT'; }
+        else { best = o.value; bestName = 'ChatGPT'; other = g.value; otherName = 'Gemini'; }
+      }
+    } else if (c.gk){ best = await askGemini(q); bestName = 'Gemini'; }
+    else { best = await askOpenAI(q); bestName = 'ChatGPT'; }
+    wait.remove();
+    const el = add('ai', best, bestName);
+    if (other){
+      const b = document.createElement('button');
+      b.className = 'alt'; b.textContent = 'Not convinced';
+      b.onclick = () => { b.remove(); add('ai', other, otherName); say(other); };
+      el.appendChild(b);
+    }
+    history.push({ role:'user', text:q }, { role:'ai', text:best });
+    history = history.slice(-12);
+    say(best);
+  } catch(e){
+    wait.remove();
+    const m = 'My apologies, sir. ' + e.message;
+    add('ai', m); say('My apologies, sir. Something went wrong.');
+  }
+}
+
+/* ---------- Reminders (work while this page is open) ---------- */
+function parseReminder(q){
+  const m = q.match(/remind me (?:in|after) (\d+|an?|one) (second|minute|hour)s?(?: to | about )?(.*)/i);
+  if (!m) return null;
+  const n = /^\d+$/.test(m[1]) ? parseInt(m[1], 10) : 1;
+  const ms = n * { second:1000, minute:60000, hour:3600000 }[m[2].toLowerCase()];
+  return { ms, what: (m[3] || 'your reminder').trim(), label: n + ' ' + m[2].toLowerCase() + (n > 1 ? 's' : '') };
+}
+function setReminder(r){
+  setTimeout(() => {
+    const msg = 'Sir, a reminder: ' + r.what;
+    add('ai', msg); say(msg);
+    try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Jarvis', { body:r.what }); } catch(e){}
+  }, r.ms);
+  const m = 'Very good, sir. I will remind you in ' + r.label + ' to ' + r.what + '. Keep this page open until then.';
+  add('ai', m); say(m);
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
+}
+
+/* ---------- Input ---------- */
+function submit(q){
+  q = q.trim(); if (!q) return;
+  add('me', q); txt.value = '';
+  const r = parseReminder(q);
+  if (r) setReminder(r); else think(q);
+}
+$('send').onclick = () => submit(txt.value);
+txt.addEventListener('keydown', e => { if (e.key === 'Enter') submit(txt.value); });
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+$('mic').onclick = () => {
+  if (!SR){ add('sys', 'Voice input is not available here. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
+  if (rec){ rec.stop(); return; }
+  rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false;
+  rec.onstart = () => $('mic').classList.add('on');
+  rec.onresult = e => submit(e.results[0][0].transcript);
+  rec.onerror = e => add('sys', 'Microphone issue: ' + e.error);
+  rec.onend = () => { $('mic').classList.remove('on'); rec = null; };
+  speechSynthesis.cancel(); rec.start();
+};
+
+/* ---------- Settings ---------- */
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; dlg.showModal(); };
+$('cancel').onclick = () => dlg.close();
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); dlg.close(); add('sys', 'Settings saved.'); };
+
+add('ai', 'Good day, sir. Jarvis is online. Add your API key under Settings to begin.');
+</script>
+</body>
+</html>
