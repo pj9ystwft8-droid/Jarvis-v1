@@ -7,26 +7,31 @@
 <meta name="apple-mobile-web-app-title" content="Jarvis">
 <meta name="theme-color" content="#071018">
 <title>Jarvis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#071018;--panel:#0e1b27;--line:#1c3345;--ink:#e6f3fb;--dim:#7f9bb0;--arc:#6fd3ff;--warn:#ffb454}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
-h1{font:600 20px/1 Georgia,serif;letter-spacing:.08em;margin:0}
+h1{font:800 18px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.16em;margin:0}
 header button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 12px;font-size:14px}
+.brand{display:flex;flex-direction:column;gap:4px}
+.by{font:500 11px/1 Rajdhani,"Arial Narrow",sans-serif;letter-spacing:.14em;color:var(--dim);opacity:.45}
 #log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
 .msg{max-width:86%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
-.me{align-self:flex-end;background:var(--line)}
-.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.me{align-self:flex-end;background:rgba(28,51,69,.9)}
+.ai{align-self:flex-start;background:rgba(14,27,39,.82);border:1px solid var(--line)}
 .src{display:block;color:var(--arc);font-size:13px;margin-top:6px}
 .sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
 .alt{margin-top:8px;background:none;border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:14px}
 #bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
 #txt{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
 #txt:focus{border-color:var(--arc)}
-#send{background:none;border:none;color:var(--arc);font-size:16px;padding:8px}
-#mic{width:48px;height:48px;border-radius:50%;border:2px solid var(--arc);background:var(--panel);color:var(--arc);font-size:20px}
+#send{background:none;border:none;color:var(--arc);font-size:16px;padding:8px 6px;flex:none}
+#mic{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0}
 #mic.on{background:var(--arc);color:var(--bg);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 10px rgba(111,211,255,.2)}}
 @media (prefers-reduced-motion:reduce){#mic.on{animation:none}}
@@ -37,14 +42,17 @@ dialog .row{display:flex;gap:8px;margin-top:16px}
 dialog button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px}
 dialog button.go{background:var(--arc);color:var(--bg);border-color:var(--arc)}
 dialog p{font-size:13px;color:var(--dim);margin:12px 0 0}
+#hud{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+header,#log,#bar{position:relative;z-index:1}
 </style>
 </head>
 <body>
-<header><h1>JARVIS</h1><button id="cfg">Settings</button></header>
+<canvas id="hud" aria-hidden="true"></canvas>
+<header><div class="brand"><h1>JARVIS</h1><span class="by">by DMS</span></div><button id="cfg">Settings</button></header>
 <main id="log" aria-live="polite"></main>
 <div id="bar">
-  <button id="mic" aria-label="Speak">&#127908;</button>
   <input id="txt" placeholder="Ask Jarvis, or say “remind me in 10 minutes to…”" autocomplete="off">
+  <button id="mic" aria-label="Speak"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
   <button id="send">Send</button>
 </div>
 
@@ -54,6 +62,7 @@ dialog p{font-size:13px;color:var(--dim);margin:12px 0 0}
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-2.5-flash">
   <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
+  <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="vc">Voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button></div>
   <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
@@ -85,33 +94,72 @@ function fillVoices(){
   voices().forEach(v => { const o = document.createElement('option'); o.value = v.voiceURI; o.textContent = v.name + ' (' + v.lang + ')'; if (v.voiceURI === cur) o.selected = true; sel.appendChild(o); });
 }
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = fillVoices;
-function say(text){
-  if (!('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text.slice(0, 600));
-  u.lang = 'en-US'; u.rate = 1.02;
+let live = false, busy = false, sayId = 0, pend = 0, fin = true;
+function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec) setTimeout(listen, 250); }
+function speechStart(){ sayId++; pend = 0; fin = false; if (window.speechSynthesis) speechSynthesis.cancel(); return sayId; }
+function speechChunk(text, id){
+  text = text.trim();
+  if (!text || !window.speechSynthesis || id !== sayId) return;
+  const u = new SpeechSynthesisUtterance(text.slice(0, 400));
+  u.lang = 'en-US'; u.rate = 1.05;
   const v = voices().find(x => x.voiceURI === store.get('voice',''));
   if (v){ u.voice = v; u.lang = v.lang; }
+  pend++;
+  u.onend = u.onerror = () => { if (id !== sayId) return; pend--; if (pend <= 0 && fin) done(id); };
+  document.body.classList.add('talk');
   speechSynthesis.speak(u);
 }
+function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) done(id); }
+function say(text){ const id = speechStart(); speechChunk(text.replace(/[*_#`]/g, ''), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences unless asked for more.';
+const SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences unless asked for more. Plain text only, no markdown, no lists.';
 
+function genCfg(m, max){
+  const g = { maxOutputTokens: max || 500 };
+  if (/gemini-2\.5-flash/.test(m)) g.thinkingConfig = { thinkingBudget: 0 };
+  return g;
+}
+function gBody(q, model){
+  const contents = history.concat([{ role:'user', text:q }]).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
+  return JSON.stringify({ systemInstruction:{ parts:[{ text:SYSTEM }] }, contents, generationConfig: genCfg(model) });
+}
 async function askGemini(q){
   const c = cfg();
-  const contents = history.concat([{ role:'user', text:q }]).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ systemInstruction:{ parts:[{ text:SYSTEM }] }, contents })
+    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, c.gm)
   });
   const j = await r.json();
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
   return j.candidates[0].content.parts.map(p => p.text || '').join('');
 }
-async function askOpenAI(q){
+async function streamGemini(q, cb, model){
   const c = cfg();
-  const messages = [{ role:'system', content:SYSTEM }].concat(history.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content:m.text })), [{ role:'user', content:q }]);
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(c.gk), {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model)
+  });
+  if (!r.ok){ let m = 'Gemini error'; try { const j = await r.json(); m = (j.error && j.error.message) || m; } catch(_){} throw new Error(m); }
+  const rd = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', all = '';
+  for (;;){
+    const { done, value } = await rd.read(); if (done) break;
+    buf += dec.decode(value, { stream:true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith('data:')) continue;
+      try {
+        const j = JSON.parse(line.slice(5));
+        const t = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('');
+        if (t){ all += t; cb(all); }
+      } catch(_){}
+    }
+  }
+  return all;
+}
+async function askOpenAI(q, hist){
+  const c = cfg(); hist = hist || history;
+  const messages = [{ role:'system', content:SYSTEM }].concat(hist.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content:m.text })), [{ role:'user', content:q }]);
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + c.ok},
     body: JSON.stringify({ model:c.om, messages })
@@ -127,16 +175,60 @@ async function referee(q, a, b){
   try {
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:prompt }] }] })
+      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:prompt }] }], generationConfig: genCfg(c.gm, 8) })
     });
     const j = await r.json();
     return /B/i.test(j.candidates[0].content.parts[0].text) ? 'B' : 'A';
   } catch(e){ return 'A'; }
 }
 
+function cleanSpeech(t){ return t.replace(/[*_#`]/g, ''); }
+async function thinkStream(q){
+  const c = cfg(), wait = add('sys', 'Thinking…'), id = speechStart();
+  let el = null, tn = null, full = '', spoken = 0;
+  const flush = final => {
+    const rest = full.slice(spoken);
+    if (final){ if (rest.trim()) speechChunk(cleanSpeech(rest), id); spoken = full.length; return; }
+    const m = rest.match(/^[\s\S]*[.!?](?=\s)/);
+    if (m){ spoken += m[0].length; speechChunk(cleanSpeech(m[0]), id); }
+  };
+  const onText = all => {
+    if (!el){ wait.remove(); el = add('ai', '', 'Gemini'); tn = document.createTextNode(''); el.insertBefore(tn, el.firstChild); }
+    full = all; tn.data = all; log.scrollTop = log.scrollHeight; flush(false);
+  };
+  try {
+    try { await streamGemini(q, onText, c.gm); }
+    catch (err){
+      if (full || /lite/.test(c.gm)) throw err;
+      await streamGemini(q, onText, 'gemini-2.5-flash-lite');
+    }
+    if (!full.trim()) throw new Error('No answer came back. Please try again.');
+    flush(true); speechEnd(id);
+    const prior = history.slice();
+    history.push({ role:'user', text:q }, { role:'ai', text:full });
+    history = history.slice(-12);
+    if (c.ok){
+      const b = document.createElement('button');
+      b.className = 'alt'; b.textContent = 'Not convinced';
+      b.onclick = async () => {
+        b.remove();
+        const w = add('sys', 'Asking ChatGPT…');
+        try { const a = await askOpenAI(q, prior); w.remove(); add('ai', a, 'ChatGPT'); say(a); }
+        catch(e){ w.remove(); add('ai', 'My apologies, sir. ' + e.message); }
+      };
+      el.appendChild(b);
+    }
+  } catch(e){
+    wait.remove();
+    add('ai', 'My apologies, sir. ' + e.message);
+    say('My apologies, sir. Something went wrong.');
+  }
+}
+
 async function think(q){
   const c = cfg();
   if (!c.gk && !c.ok){ const m = 'Sir, I need at least one API key. Tap Settings to add it.'; add('ai', m); say(m); return; }
+  if (c.gk && (store.get('mode','fast') !== 'best' || !c.ok)) return thinkStream(q);
   const wait = add('sys', 'Thinking…');
   try {
     let best, other, bestName, otherName;
@@ -192,6 +284,7 @@ function setReminder(r){
 /* ---------- Input ---------- */
 function submit(q){
   q = q.trim(); if (!q) return;
+  busy = true;
   add('me', q); txt.value = '';
   const r = parseReminder(q);
   if (r) setReminder(r); else think(q);
@@ -201,24 +294,192 @@ txt.addEventListener('keydown', e => { if (e.key === 'Enter') submit(txt.value);
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;
+function listen(){
+  if (!live || busy || rec || !SR) return;
+  const r = rec = new SR();
+  r.lang = 'en-US'; r.interimResults = true; r.continuous = false;
+  let heard = '', sent = false, timer = null;
+  const send = () => { clearTimeout(timer); const q = heard.trim(); if (sent || !q || !live) return; sent = true; txt.value = ''; submit(q); };
+  r.onresult = e => {
+    heard = Array.from(e.results).map(x => x[0].transcript).join(' ');
+    txt.value = heard;
+    clearTimeout(timer);
+    if (e.results[e.results.length - 1].isFinal) send();
+    else timer = setTimeout(() => { try { r.stop(); } catch(_){} }, 1000);
+  };
+  r.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){ stopLive(); add('sys', 'Microphone access was denied, sir. Allow it in Safari settings.'); }
+    else if (e.error !== 'no-speech' && e.error !== 'aborted') add('sys', 'Microphone issue: ' + e.error);
+  };
+  r.onend = () => { clearTimeout(timer); if (rec === r) rec = null; send(); if (live && !busy) setTimeout(listen, 200); };
+  try { r.start(); } catch(_){ rec = null; }
+}
+function stopLive(){
+  live = false; busy = false; sayId++;
+  $('mic').classList.remove('on'); document.body.classList.remove('live', 'talk');
+  if (rec){ try { rec.stop(); } catch(e){} }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
 $('mic').onclick = () => {
   if (!SR){ add('sys', 'Voice input is not available here. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
-  if (rec){ rec.stop(); return; }
-  rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false;
-  rec.onstart = () => $('mic').classList.add('on');
-  rec.onresult = e => submit(e.results[0][0].transcript);
-  rec.onerror = e => add('sys', 'Microphone issue: ' + e.error);
-  rec.onend = () => { $('mic').classList.remove('on'); rec = null; };
-  speechSynthesis.cancel(); rec.start();
+  if (live){ stopLive(); add('sys', 'Listening off.'); return; }
+  live = true; busy = false;
+  $('mic').classList.add('on'); document.body.classList.add('live');
+  add('sys', 'Listening, sir. Speak, and I will answer when you pause. Tap the microphone to stop.');
+  listen();
 };
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); dlg.close(); add('sys', 'Settings saved.'); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); dlg.close(); add('sys', 'Settings saved.'); };
 
-add('ai', 'Good day, sir. Jarvis is online. Add your API key under Settings to begin.');
+/* ---------- Living background ---------- */
+(function(){
+  const cv = $('hud'), g = cv.getContext('2d');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0;
+  function size(){ const d = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); if (still) frame(2000); }
+  const parts = Array.from({ length: 46 }, () => ({ r: .37 + Math.random() * .57, a: Math.random() * 6.283, v: (.15 + Math.random() * .5) * (Math.random() < .5 ? -1 : 1), s: .8 + Math.random() * 1.8, p: Math.random() * 6 }));
+  const ripples = [];
+  let warm = 0, e = .14, col = [111, 211, 255], last = 0, rip = 0, spin = 0, envT = 0;
+  let env = [.5, .5, .5], envG = [.5, .5, .5];
+  const rgba = a => 'rgba(' + (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0) + ',' + a + ')';
+
+  function frame(ms){
+    const t = ms / 1000, dt = Math.min(.05, t - last) || .016; last = t;
+    const talking = document.body.classList.contains('talk'), thinking = busy && !talking;
+    e += ((talking ? 1 : thinking ? .65 : live ? .4 : .14) - e) * Math.min(1, dt * 3);
+    const tc = thinking ? [255, 180, 84] : [111, 211, 255];
+    for (let i = 0; i < 3; i++) col[i] += (tc[i] - col[i]) * Math.min(1, dt * 3);
+    warm += ((thinking ? 1 : 0) - warm) * Math.min(1, dt * 3);
+    spin += dt * (.25 + e * 1.6);
+    envT += dt;
+    if (envT > .09){ envT = 0; envG = envG.map(() => talking ? Math.random() : .5 + Math.random() * .3); }
+    env = env.map((v, i) => v + (envG[i] - v) * Math.min(1, dt * 14));
+
+    const cx = W / 2, cy = H * .47, S = Math.min(H * .46, W * .8), TAU = Math.PI * 2;
+    g.clearRect(0, 0, W, H);
+    g.globalCompositeOperation = 'lighter';
+    g.lineCap = 'round';
+
+    // core glow
+    const pulse = 1 + Math.sin(t * (1.6 + e * 4)) * .07 * (.5 + e);
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, S * .32 * pulse);
+    gr.addColorStop(0, rgba(.5 * (.5 + e * .5))); gr.addColorStop(1, rgba(0));
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, S * .32 * pulse, 0, TAU); g.fill();
+
+    // steady orb: Siri-style fluid core inside an arc-reactor frame
+    const oR = S * .3, mix = c => [c[0] + (255 - c[0]) * warm, c[1] + (150 - c[1]) * warm, c[2] + (50 - c[2]) * warm].map(Math.round);
+    g.save();
+    g.beginPath(); g.arc(cx, cy, oR * .8, 0, TAU); g.clip();
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = 'rgba(4,12,22,.6)'; g.fillRect(cx - oR, cy - oR, oR * 2, oR * 2);
+    g.globalCompositeOperation = 'lighter';
+    [[[90, 220, 255], .9, 0, .38, .3, .62], [[60, 110, 255], -.7, 2, .34, .4, .58], [[170, 110, 255], .6, 4, .4, .32, .55], [[210, 250, 255], -1.1, 1, .3, .28, .4]].forEach(([c, sp, ph, rx, ry, sz]) => {
+      const k = sp * (1 + e * 2.2), m = .7 + e * .6, cc = mix(c);
+      const x = cx + Math.cos(t * k + ph) * oR * rx * m, y = cy + Math.sin(t * k * 1.3 + ph) * oR * ry * m, rad = oR * sz * (1 + .08 * Math.sin(t * 2 + ph));
+      const bg = g.createRadialGradient(x, y, 0, x, y, rad);
+      bg.addColorStop(0, 'rgba(' + cc + ',' + (.5 + .35 * e) + ')'); bg.addColorStop(1, 'rgba(' + cc + ',0)');
+      g.fillStyle = bg; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
+    });
+    const hl = g.createRadialGradient(cx, cy, 0, cx, cy, oR * .3);
+    hl.addColorStop(0, 'rgba(255,255,255,' + (.45 + .3 * e + .08 * Math.sin(t * 3)) + ')'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl; g.beginPath(); g.arc(cx, cy, oR * .3, 0, TAU); g.fill();
+    g.restore();
+    g.lineCap = 'butt'; g.lineWidth = oR * .12; g.strokeStyle = rgba(.5 + e * .2);
+    for (let j = 0; j < 10; j++){ const st = spin * .04 + j * TAU / 10; g.beginPath(); g.arc(cx, cy, oR * .9, st, st + TAU / 10 * .7); g.stroke(); }
+    g.lineCap = 'round';
+    g.lineWidth = 2; g.strokeStyle = rgba(.75); g.beginPath(); g.arc(cx, cy, oR * .8, 0, TAU); g.stroke();
+    g.lineWidth = 2.5; g.strokeStyle = rgba(.9); g.beginPath(); g.arc(cx, cy, oR, 0, TAU); g.stroke();
+    g.lineWidth = 1; g.strokeStyle = rgba(.35); g.beginPath(); g.arc(cx, cy, oR * 1.14, 0, TAU); g.stroke();
+
+    // rotating arc rings
+    [[.52, 3, .6, 3, .7], [.62, 5, -.4, 1.5, .5], [.74, 2, .3, 5, .4], [.8, 8, -.25, 1, .45]].forEach(([rad, k, sp, w, al]) => {
+      g.lineWidth = w; g.strokeStyle = rgba(al * (.6 + e * .5));
+      for (let j = 0; j < k; j++){
+        const st = spin * sp + j * TAU / k;
+        g.beginPath(); g.arc(cx, cy, S * rad, st, st + TAU / k * .55); g.stroke();
+      }
+    });
+
+    // tick ring with flicker
+    for (let i = 0; i < 96; i++){
+      const a = i / 96 * TAU + spin * .1, long = i % 6 === 0;
+      const lit = Math.sin(t * 3 + i * 12.9) > .96 - e * .1;
+      const r1 = S * .9, r2 = r1 + S * (long ? .045 : .02);
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+      g.lineWidth = long ? 1.6 : 1; g.strokeStyle = rgba(lit ? .95 : .3); g.stroke();
+    }
+
+    // radar sweep with trail
+    const sw = t * (.8 + e * 1.5);
+    g.lineWidth = 1.4;
+    for (let k = 0; k < 26; k++){
+      const a = sw - k * .035;
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * S * .36, cy + Math.sin(a) * S * .36); g.lineTo(cx + Math.cos(a) * S * .88, cy + Math.sin(a) * S * .88);
+      g.strokeStyle = rgba(.22 * (1 - k / 26) * (.5 + e * .5)); g.stroke();
+    }
+
+    // orbiting particles
+    parts.forEach(p => {
+      p.a += p.v * dt * (1 + e * 2.2);
+      const rr = S * p.r * (1 + .03 * Math.sin(t + p.p)), sg = Math.sign(p.v);
+      g.lineWidth = .8; g.strokeStyle = rgba(.25);
+      g.beginPath(); g.arc(cx, cy, rr, p.a - sg * .14, p.a, sg < 0); g.stroke();
+      g.fillStyle = rgba(.7); g.beginPath(); g.arc(cx + Math.cos(p.a) * rr, cy + Math.sin(p.a) * rr, p.s, 0, TAU); g.fill();
+    });
+
+    // ripples from the core
+    rip += dt;
+    if (rip > (talking ? .55 : thinking ? .8 : live ? 1.8 : 3.5)){ rip = 0; ripples.push({ r: S * .34, a: .5 }); }
+    for (let i = ripples.length - 1; i >= 0; i--){
+      const q = ripples[i]; q.r += dt * S * (.5 + e * .5); q.a -= dt * .35;
+      if (q.a <= 0 || q.r > S * 1.1){ ripples.splice(i, 1); continue; }
+      g.lineWidth = 1.2; g.strokeStyle = rgba(q.a); g.beginPath(); g.arc(cx, cy, q.r, 0, TAU); g.stroke();
+    }
+
+    // title and meaning of the name, above the orb
+    {
+      g.globalCompositeOperation = 'source-over';
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      g.save();
+      g.shadowColor = rgba(.8); g.shadowBlur = 12 + e * 10;
+      g.fillStyle = 'rgba(230,243,251,.95)';
+      g.font = '800 ' + Math.round(S * .07) + 'px Orbitron, "Arial Black", sans-serif';
+      try { g.letterSpacing = Math.round(S * .012) + 'px'; } catch (_) {}
+      g.fillText('JARVIS', cx, cy - S * .455);
+      g.restore();
+
+      g.save();
+      g.textAlign = 'left';
+      const fs = Math.round(S * .036), gap = fs * .45;
+      const fb = '700 ' + fs + 'px Rajdhani, "Arial Narrow", sans-serif', fn = '500 ' + fs + 'px Rajdhani, "Arial Narrow", sans-serif';
+      let total = gap * 5;
+      const segs = [['J', 'ust'], ['A', ''], ['R', 'ather'], ['V', 'ery'], ['I', 'ntelligent'], ['S', 'ystem']].map(([a, b]) => {
+        g.font = fb; const wa = g.measureText(a).width; g.font = fn; const wb = g.measureText(b).width;
+        total += wa + wb; return [a, b, wa, wb];
+      });
+      let tx = cx - total / 2;
+      const ty = cy - S * .395;
+      segs.forEach(([a, b, wa, wb]) => {
+        g.font = fb; g.fillStyle = rgba(1); g.fillText(a, tx, ty);
+        g.font = fn; g.fillStyle = 'rgba(200,225,240,.8)'; g.fillText(b, tx + wa, ty);
+        tx += wa + wb + gap;
+      });
+      g.restore();
+    }
+
+    if (!still) requestAnimationFrame(frame);
+  }
+  if (document.fonts) Promise.all([document.fonts.load('800 20px Orbitron'), document.fonts.load('700 20px Rajdhani'), document.fonts.load('500 20px Rajdhani')]).then(() => { if (still) frame(2000); }).catch(() => {});
+  addEventListener('resize', size);
+  size();
+  if (!still) requestAnimationFrame(frame);
+})();
+
+add('ai', 'Good day, sir. Jarvis is online. How can I be of service to you, sir?');
 </script>
 </body>
 </html>
