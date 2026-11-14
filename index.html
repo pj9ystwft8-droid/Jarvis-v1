@@ -23,7 +23,7 @@ header button{background:none;border:1px solid var(--line);color:var(--dim);bord
 #log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
 .msg{max-width:86%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
 .me{align-self:flex-end;background:rgba(28,51,69,.9)}
-.ai{align-self:flex-start;background:rgba(14,27,39,.82);border:1px solid var(--line)}
+.ai{align-self:flex-start;background:rgba(14,27,39,.88);border:1px solid var(--line)}
 .src{display:block;color:var(--arc);font-size:13px;margin-top:6px}
 .sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
 .alt{margin-top:8px;background:none;border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:14px}
@@ -42,13 +42,25 @@ dialog .row{display:flex;gap:8px;margin-top:16px}
 dialog button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px}
 dialog button.go{background:var(--arc);color:var(--bg);border-color:var(--arc)}
 dialog p{font-size:13px;color:var(--dim);margin:12px 0 0}
-#hud{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#hud,#hudt{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#hud{filter:blur(2.5px)}
+.msg{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 header,#log,#bar{position:relative;z-index:1}
+#vm{position:fixed;inset:0;z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(7,16,24,.28)}
+#vm.open{display:flex}
+#vmx{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;background:none;border:1px solid var(--line);color:var(--dim);width:38px;height:38px;border-radius:50%;font-size:16px}
+#vmic{--lvl:0;width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:min(36vh,300px);background:rgba(14,27,39,.55);border:1.5px solid var(--arc);color:var(--arc);transition:box-shadow .08s,background .2s,color .2s,border-color .2s;box-shadow:0 0 calc(10px + var(--lvl) * 46px) rgba(111,211,255,calc(.25 + var(--lvl) * .6))}
+#vm.hear #vmic{background:var(--arc);color:var(--bg)}
+#vm.think #vmic{border-color:var(--warn);color:var(--warn);box-shadow:0 0 26px rgba(255,180,84,.45)}
+#vm.speak #vmic{box-shadow:0 0 calc(14px + var(--lvl) * 40px) rgba(111,211,255,.75)}
+#vmt{margin-top:14px;color:var(--dim);font:600 14px/1 Rajdhani,sans-serif;letter-spacing:.2em;text-transform:uppercase}
 </style>
 </head>
 <body>
 <canvas id="hud" aria-hidden="true"></canvas>
-<header><div class="brand"><h1>JARVIS</h1><span class="by">by DMS</span></div><button id="cfg">Settings</button></header>
+<canvas id="hudt" aria-hidden="true"></canvas>
+<div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
+<header><div class="brand"><h1>JARVIS</h1><span class="by">by DMS (last update: November 14, 2026)</span></div><button id="cfg">Settings</button></header>
 <main id="log" aria-live="polite"></main>
 <div id="bar">
   <input id="txt" placeholder="Ask Jarvis, or say “remind me in 10 minutes to…”" autocomplete="off">
@@ -60,8 +72,9 @@ header,#log,#bar{position:relative;z-index:1}
   <strong>Settings</strong>
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
-  <label for="gm">Gemini model</label><input id="gm" value="gemini-2.5-flash">
+  <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
   <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
+  <label for="mem">Memory (one fact per line)</label><textarea id="mem" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:15px"></textarea>
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="vc">Voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button></div>
@@ -76,7 +89,7 @@ const store = {
   get(k, d){ try { return localStorage.getItem(k) || d } catch(e){ return d } },
   set(k, v){ try { localStorage.setItem(k, v) } catch(e){} }
 };
-const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: store.get('gm','gemini-2.5-flash'), om: store.get('om','gpt-4o-mini') });
+const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini') });
 let history = [];
 
 function add(cls, text, source){
@@ -87,22 +100,26 @@ function add(cls, text, source){
   log.appendChild(d); log.scrollTop = log.scrollHeight;
   return d;
 }
+function pickVoice(){
+  const all = voices(), saved = store.get('voice','');
+  return all.find(x => x.voiceURI === saved) || all.find(x => /daniel/i.test(x.name) && /en[-_]GB/i.test(x.lang)) || all.find(x => /daniel/i.test(x.name)) || all.find(x => /en[-_]GB/i.test(x.lang)) || null;
+}
 function voices(){ return (window.speechSynthesis ? speechSynthesis.getVoices() : []).filter(v => /^en/i.test(v.lang)); }
 function fillVoices(){
-  const sel = $('vc'), cur = store.get('voice','');
+  const sel = $('vc'), cur = (pickVoice() || {}).voiceURI || '';
   sel.innerHTML = '<option value="">Default</option>';
   voices().forEach(v => { const o = document.createElement('option'); o.value = v.voiceURI; o.textContent = v.name + ' (' + v.lang + ')'; if (v.voiceURI === cur) o.selected = true; sel.appendChild(o); });
 }
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = fillVoices;
-let live = false, busy = false, sayId = 0, pend = 0, fin = true;
+let heardNow = false, live = false, busy = false, sayId = 0, pend = 0, fin = true;
 function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec) setTimeout(listen, 250); }
 function speechStart(){ sayId++; pend = 0; fin = false; if (window.speechSynthesis) speechSynthesis.cancel(); return sayId; }
 function speechChunk(text, id){
   text = text.trim();
   if (!text || !window.speechSynthesis || id !== sayId) return;
   const u = new SpeechSynthesisUtterance(text.slice(0, 400));
-  u.lang = 'en-US'; u.rate = 1.05;
-  const v = voices().find(x => x.voiceURI === store.get('voice',''));
+  u.lang = 'en-GB'; u.rate = 1.05;
+  const v = pickVoice();
   if (v){ u.voice = v; u.lang = v.lang; }
   pend++;
   u.onend = u.onerror = () => { if (id !== sayId) return; pend--; if (pend <= 0 && fin) done(id); };
@@ -113,30 +130,43 @@ function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) don
 function say(text){ const id = speechStart(); speechChunk(text.replace(/[*_#`]/g, ''), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences unless asked for more. Plain text only, no markdown, no lists.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences unless asked for more. Plain text only, no markdown, no lists.';
+
+
+/* ---------- Clock, memory ---------- */
+function nowText(){
+  const d = new Date();
+  return d.toLocaleString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' (' + Intl.DateTimeFormat().resolvedOptions().timeZone + ')';
+}
+function facts(){ try { return JSON.parse(store.get('facts','[]')); } catch(e){ return []; } }
+function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-60))); }
+function sysPrompt(){
+  const f = facts();
+  return BASE_SYSTEM + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
+}
 
 function genCfg(m, max){
   const g = { maxOutputTokens: max || 500 };
   if (/gemini-2\.5-flash/.test(m)) g.thinkingConfig = { thinkingBudget: 0 };
   return g;
 }
-function gBody(q, model){
-  const contents = history.concat([{ role:'user', text:q }]).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
-  return JSON.stringify({ systemInstruction:{ parts:[{ text:SYSTEM }] }, contents, generationConfig: genCfg(model) });
+function gBody(q, model, extra){
+  const contents = history.concat([{ role:'user', text:(extra ? extra + '\n\nQuestion: ' : '') + q }]).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
+  return JSON.stringify({ systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model) });
 }
-async function askGemini(q){
+async function askGemini(q, extra){
   const c = cfg();
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, c.gm)
+    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, c.gm, extra)
   });
   const j = await r.json();
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
   return j.candidates[0].content.parts.map(p => p.text || '').join('');
 }
-async function streamGemini(q, cb, model){
+async function streamGemini(q, cb, model, extra){
   const c = cfg();
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(c.gk), {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model)
+    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model, extra)
   });
   if (!r.ok){ let m = 'Gemini error'; try { const j = await r.json(); m = (j.error && j.error.message) || m; } catch(_){} throw new Error(m); }
   const rd = r.body.getReader(), dec = new TextDecoder();
@@ -157,9 +187,9 @@ async function streamGemini(q, cb, model){
   }
   return all;
 }
-async function askOpenAI(q, hist){
+async function askOpenAI(q, hist, extra){
   const c = cfg(); hist = hist || history;
-  const messages = [{ role:'system', content:SYSTEM }].concat(hist.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content:m.text })), [{ role:'user', content:q }]);
+  const messages = [{ role:'system', content:sysPrompt() }].concat(hist.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content:m.text })), [{ role:'user', content:(extra ? extra + '\n\nQuestion: ' : '') + q }]);
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + c.ok},
     body: JSON.stringify({ model:c.om, messages })
@@ -183,7 +213,7 @@ async function referee(q, a, b){
 }
 
 function cleanSpeech(t){ return t.replace(/[*_#`]/g, ''); }
-async function thinkStream(q){
+async function thinkStream(q, extra){
   const c = cfg(), wait = add('sys', 'Thinking…'), id = speechStart();
   let el = null, tn = null, full = '', spoken = 0;
   const flush = final => {
@@ -197,10 +227,10 @@ async function thinkStream(q){
     full = all; tn.data = all; log.scrollTop = log.scrollHeight; flush(false);
   };
   try {
-    try { await streamGemini(q, onText, c.gm); }
+    try { await streamGemini(q, onText, c.gm, extra); }
     catch (err){
-      if (full || /lite/.test(c.gm)) throw err;
-      await streamGemini(q, onText, 'gemini-2.5-flash-lite');
+      if (full) throw err;
+      await streamGemini(q, onText, c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite', extra);
     }
     if (!full.trim()) throw new Error('No answer came back. Please try again.');
     flush(true); speechEnd(id);
@@ -213,7 +243,7 @@ async function thinkStream(q){
       b.onclick = async () => {
         b.remove();
         const w = add('sys', 'Asking ChatGPT…');
-        try { const a = await askOpenAI(q, prior); w.remove(); add('ai', a, 'ChatGPT'); say(a); }
+        try { const a = await askOpenAI(q, prior, extra); w.remove(); add('ai', a, 'ChatGPT'); say(a); }
         catch(e){ w.remove(); add('ai', 'My apologies, sir. ' + e.message); }
       };
       el.appendChild(b);
@@ -225,15 +255,15 @@ async function thinkStream(q){
   }
 }
 
-async function think(q){
+async function think(q, extra){
   const c = cfg();
   if (!c.gk && !c.ok){ const m = 'Sir, I need at least one API key. Tap Settings to add it.'; add('ai', m); say(m); return; }
-  if (c.gk && (store.get('mode','fast') !== 'best' || !c.ok)) return thinkStream(q);
+  if (c.gk && (store.get('mode','fast') !== 'best' || !c.ok)) return thinkStream(q, extra);
   const wait = add('sys', 'Thinking…');
   try {
     let best, other, bestName, otherName;
     if (c.gk && c.ok){
-      const [g, o] = await Promise.allSettled([askGemini(q), askOpenAI(q)]);
+      const [g, o] = await Promise.allSettled([askGemini(q, extra), askOpenAI(q, null, extra)]);
       if (g.status === 'rejected' && o.status === 'rejected') throw g.reason;
       if (g.status === 'rejected'){ best = o.value; bestName = 'ChatGPT'; }
       else if (o.status === 'rejected'){ best = g.value; bestName = 'Gemini'; }
@@ -242,8 +272,8 @@ async function think(q){
         if (pick === 'A'){ best = g.value; bestName = 'Gemini'; other = o.value; otherName = 'ChatGPT'; }
         else { best = o.value; bestName = 'ChatGPT'; other = g.value; otherName = 'Gemini'; }
       }
-    } else if (c.gk){ best = await askGemini(q); bestName = 'Gemini'; }
-    else { best = await askOpenAI(q); bestName = 'ChatGPT'; }
+    } else if (c.gk){ best = await askGemini(q, extra); bestName = 'Gemini'; }
+    else { best = await askOpenAI(q, null, extra); bestName = 'ChatGPT'; }
     wait.remove();
     const el = add('ai', best, bestName);
     if (other){
@@ -261,6 +291,37 @@ async function think(q){
     add('ai', m); say('My apologies, sir. Something went wrong.');
   }
 }
+
+
+/* ---------- Live weather (Open-Meteo, no key needed) ---------- */
+const WMO = { 0:'clear sky',1:'mostly clear',2:'partly cloudy',3:'overcast',45:'foggy',48:'foggy',51:'light drizzle',53:'drizzle',55:'heavy drizzle',61:'light rain',63:'rain',65:'heavy rain',71:'light snow',73:'snow',75:'heavy snow',80:'rain showers',81:'rain showers',82:'violent showers',95:'thunderstorms',96:'thunderstorms with hail',99:'thunderstorms with hail' };
+function getPos(){
+  return new Promise((ok, no) => {
+    const c = store.get('pos','');
+    if (!navigator.geolocation){ c ? ok(JSON.parse(c)) : no(new Error('Location is unavailable.')); return; }
+    navigator.geolocation.getCurrentPosition(
+      p => { const o = { lat:p.coords.latitude, lon:p.coords.longitude }; store.set('pos', JSON.stringify(o)); ok(o); },
+      () => { c ? ok(JSON.parse(c)) : no(new Error('I need location access to check the weather, sir. Allow it for Safari, or ask me with a city name.')); },
+      { timeout:8000, maximumAge:600000 });
+  });
+}
+async function geocode(city){
+  const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(city));
+  const j = await r.json();
+  if (!j.results || !j.results.length) throw new Error('I could not find a place called ' + city + ', sir.');
+  return { lat:j.results[0].latitude, lon:j.results[0].longitude, name:j.results[0].name };
+}
+async function weatherFor(q){
+  const m = q.match(/\b(?:in|for|at)\s+([A-Z][\p{L}'. -]{2,30})/u);
+  const city = m ? m[1].trim().replace(/\s+(today|tomorrow|tonight|this|next|now|please)\b.*$/i, '') : '';
+  const pos = city ? await geocode(city) : await getPos();
+  const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + pos.lat + '&longitude=' + pos.lon + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7';
+  const j = await (await fetch(u)).json();
+  const c = j.current, d = j.daily;
+  const days = d.time.map((t, i) => new Date(t + 'T12:00').toLocaleDateString('en-GB', { weekday:'long' }) + ': ' + (WMO[d.weather_code[i]] || 'mixed') + ', ' + Math.round(d.temperature_2m_min[i]) + ' to ' + Math.round(d.temperature_2m_max[i]) + ' degrees Celsius, ' + d.precipitation_probability_max[i] + '% chance of rain');
+  return 'Place: ' + (pos.name || 'the user\'s location') + '. Now: ' + (WMO[c.weather_code] || 'mixed') + ', ' + Math.round(c.temperature_2m) + ' degrees Celsius, feels like ' + Math.round(c.apparent_temperature) + ', wind ' + Math.round(c.wind_speed_10m) + ' km/h. Forecast, starting today: ' + days.join('. ') + '.';
+}
+const isWeather = q => /\b(weather|forecast|temperature|rain|raining|umbrella|snow|sunny|cold outside|hot outside)\b/i.test(q);
 
 /* ---------- Reminders (work while this page is open) ---------- */
 function parseReminder(q){
@@ -282,12 +343,35 @@ function setReminder(r){
 }
 
 /* ---------- Input ---------- */
+function reply(m){ add('ai', m); say(m); }
 function submit(q){
   q = q.trim(); if (!q) return;
   busy = true;
   add('me', q); txt.value = '';
+  const low = q.toLowerCase();
+  let m;
+  if ((m = q.match(/^(?:please\s+)?remember(?: that)?\s+(.+)/i))){
+    const a = facts(); a.push(m[1].replace(/[.!]+$/, '')); saveFacts(a);
+    return reply('Very good, sir. I have noted that.');
+  }
+  if ((m = q.match(/^(?:please\s+)?forget(?: that)?\s+(.+)/i))){
+    const w = m[1].toLowerCase().replace(/[.!]+$/, ''), a = facts(), keep = a.filter(f => !f.toLowerCase().includes(w));
+    saveFacts(keep);
+    return reply(keep.length < a.length ? 'Done, sir. It has been erased.' : 'I found nothing matching that, sir.');
+  }
+  if (/\bwhat(?:'s| is| was)?\s+(?:the\s+)?(time|date|day)\b|\bwhat time is it\b|\bwhat day is (?:it|today)\b|\btoday'?s date\b|\bcurrent (?:time|date)\b/i.test(low) && !/\b(tomorrow|yesterday|in |on |next|last)\b/.test(low)){
+    const d = new Date(), t = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hour12:false }), dt = d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    return reply(/\btime\b/.test(low) && !/\b(date|day)\b/.test(low) ? 'It is ' + t + ', sir.' : 'It is ' + dt + ', sir, and the time is ' + t + '.');
+  }
   const r = parseReminder(q);
-  if (r) setReminder(r); else think(q);
+  if (r) return setReminder(r);
+  if (isWeather(q)){
+    const w = add('sys', 'Checking the forecast…');
+    weatherFor(q).then(info => { w.remove(); think(q, 'Live weather data (use only this, answer in two or three short sentences, say temperatures in degrees Celsius): ' + info); })
+      .catch(e => { w.remove(); reply(e.message || 'I could not reach the weather service, sir.'); });
+    return;
+  }
+  think(q);
 }
 $('send').onclick = () => submit(txt.value);
 txt.addEventListener('keydown', e => { if (e.key === 'Enter') submit(txt.value); });
@@ -302,6 +386,7 @@ function listen(){
   const send = () => { clearTimeout(timer); const q = heard.trim(); if (sent || !q || !live) return; sent = true; txt.value = ''; submit(q); };
   r.onresult = e => {
     heard = Array.from(e.results).map(x => x[0].transcript).join(' ');
+    heardNow = true; clearTimeout(window._hn); window._hn = setTimeout(() => { heardNow = false; }, 700);
     txt.value = heard;
     clearTimeout(timer);
     if (e.results[e.results.length - 1].isFinal) send();
@@ -312,38 +397,87 @@ function listen(){
     else if (e.error !== 'no-speech' && e.error !== 'aborted') add('sys', 'Microphone issue: ' + e.error);
   };
   r.onend = () => { clearTimeout(timer); if (rec === r) rec = null; send(); if (live && !busy) setTimeout(listen, 200); };
-  try { r.start(); } catch(_){ rec = null; }
+  try { r.start(); } catch(_){ rec = null; if (live) setTimeout(listen, 500); }
 }
 function stopLive(){
-  live = false; busy = false; sayId++;
+  live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn);
   $('mic').classList.remove('on'); document.body.classList.remove('live', 'talk');
-  if (rec){ try { rec.stop(); } catch(e){} }
+  $('vm').classList.remove('open'); meterOff();
+  const r = rec; rec = null;
+  if (r){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} }
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
-$('mic').onclick = () => {
-  if (!SR){ add('sys', 'Voice input is not available here. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
-  if (live){ stopLive(); add('sys', 'Listening off.'); return; }
+async function startLive(){
+  if (!SR){ add('sys', 'Voice input is not available here, sir. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
+  try {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+      const st = await navigator.mediaDevices.getUserMedia({ audio:true });
+      st.getTracks().forEach(t => t.stop());
+    }
+  } catch(e){ add('sys', 'Microphone access was denied, sir. Allow it in Safari settings, then reload the page.'); return; }
   live = true; busy = false;
-  $('mic').classList.add('on'); document.body.classList.add('live');
-  add('sys', 'Listening, sir. Speak, and I will answer when you pause. Tap the microphone to stop.');
-  listen();
-};
+  $('mic').classList.add('on'); document.body.classList.add('live'); $('vm').classList.add('open');
+  meterOn();
+  setTimeout(listen, 350);
+}
+function toggleLive(){ if (live){ stopLive(); } else startLive(); }
+$('mic').onclick = toggleLive;
+$('vm').onclick = e => { if (e.target.id === 'vm' || e.target.closest('#vmx') || e.target.closest('#vmic')) stopLive(); };
+
+
+/* ---------- Voice screen: live mic level ---------- */
+let lvl = 0, meterCtx = null, meterAn = null, meterStream = null;
+async function meterOn(){
+  try {
+    if (meterAn) return;
+    meterStream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+    const AC = window.AudioContext || window.webkitAudioContext;
+    meterCtx = new AC();
+    const src = meterCtx.createMediaStreamSource(meterStream);
+    meterAn = meterCtx.createAnalyser(); meterAn.fftSize = 256; src.connect(meterAn);
+  } catch(e){ meterAn = null; }
+}
+function meterOff(){
+  try { if (meterStream) meterStream.getTracks().forEach(t => t.stop()); if (meterCtx) meterCtx.close(); } catch(e){}
+  meterStream = meterCtx = meterAn = null; lvl = 0;
+}
+(function tick(){
+  const vm = $('vm');
+  if (vm.classList.contains('open')){
+    let raw = 0;
+    if (meterAn){
+      const d = new Uint8Array(meterAn.fftSize); meterAn.getByteTimeDomainData(d);
+      let sum = 0; for (let i = 0; i < d.length; i++){ const x = (d[i] - 128) / 128; sum += x * x; }
+      raw = Math.min(1, Math.sqrt(sum / d.length) * 7);
+    }
+    const talking = document.body.classList.contains('talk');
+    if (talking) raw = .35 + .45 * Math.abs(Math.sin(Date.now() / 140));
+    lvl += (raw - lvl) * .35;
+    vm.style.setProperty('--lvl', lvl.toFixed(3));
+    const hear = !talking && raw > .12, think = busy && !talking;
+    vm.classList.toggle('hear', hear); vm.classList.toggle('speak', talking); vm.classList.toggle('think', think);
+    $('vmt').textContent = talking ? 'Speaking' : think ? 'Thinking' : hear ? 'Listening' : 'Go ahead, sir';
+  }
+  requestAnimationFrame(tick);
+})();
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); dlg.close(); add('sys', 'Settings saved.'); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); };
 
 /* ---------- Living background ---------- */
 (function(){
-  const cv = $('hud'), g = cv.getContext('2d');
+  const cv = $('hud'), g = cv.getContext('2d'), cv2 = $('hudt'), h = cv2.getContext('2d');
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W = 0, H = 0;
-  function size(){ const d = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); if (still) frame(2000); }
-  const parts = Array.from({ length: 46 }, () => ({ r: .37 + Math.random() * .57, a: Math.random() * 6.283, v: (.15 + Math.random() * .5) * (Math.random() < .5 ? -1 : 1), s: .8 + Math.random() * 1.8, p: Math.random() * 6 }));
+  function size(){ const d = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = cv2.width = W * d; cv.height = cv2.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); h.setTransform(d, 0, 0, d, 0, 0); if (still) frame(2000); }
+  const parts = Array.from({ length: 12 }, () => ({ r: .37 + Math.random() * .57, a: Math.random() * 6.283, v: (.15 + Math.random() * .5) * (Math.random() < .5 ? -1 : 1), s: .8 + Math.random() * 1.8, p: Math.random() * 6 }));
   const ripples = [];
-  let warm = 0, e = .14, col = [111, 211, 255], last = 0, rip = 0, spin = 0, envT = 0;
+  const bok = Array.from({ length: 14 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - .5) * .012, vy: (Math.random() - .5) * .01, r: .05 + Math.random() * .14, a: .07 + Math.random() * .11, p: Math.random() * 6.283 }));
+  let memN = 0, memT = -9;
+  let warm = 0, voiceAmt = 0, e = .14, col = [111, 211, 255], last = 0, rip = 0, spin = 0, envT = 0;
   let env = [.5, .5, .5], envG = [.5, .5, .5];
   const rgba = a => 'rgba(' + (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0) + ',' + a + ')';
 
@@ -354,7 +488,8 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
     const tc = thinking ? [255, 180, 84] : [111, 211, 255];
     for (let i = 0; i < 3; i++) col[i] += (tc[i] - col[i]) * Math.min(1, dt * 3);
     warm += ((thinking ? 1 : 0) - warm) * Math.min(1, dt * 3);
-    spin += dt * (.25 + e * 1.6);
+    voiceAmt += (((talking || live) ? 1 : 0) - voiceAmt) * Math.min(1, dt * 4);
+    spin += dt * (.1 + e * .5);
     envT += dt;
     if (envT > .09){ envT = 0; envG = envG.map(() => talking ? Math.random() : .5 + Math.random() * .3); }
     env = env.map((v, i) => v + (envG[i] - v) * Math.min(1, dt * 14));
@@ -364,10 +499,19 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
     g.globalCompositeOperation = 'lighter';
     g.lineCap = 'round';
 
+    // drifting bokeh orbs
+    bok.forEach(b => {
+      const x = ((b.x + t * b.vx) % 1 + 1) % 1 * W, y = ((b.y + t * b.vy) % 1 + 1) % 1 * H;
+      const rr = S * b.r * (1 + .12 * Math.sin(t * .5 + b.p)), a = b.a * (.65 + .35 * Math.sin(t * .7 + b.p)) * (.7 + e * .6);
+      const gg = g.createRadialGradient(x, y, 0, x, y, rr);
+      gg.addColorStop(0, rgba(a)); gg.addColorStop(1, rgba(0));
+      g.fillStyle = gg; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill();
+    });
+
     // core glow
     const pulse = 1 + Math.sin(t * (1.6 + e * 4)) * .07 * (.5 + e);
     const gr = g.createRadialGradient(cx, cy, 0, cx, cy, S * .32 * pulse);
-    gr.addColorStop(0, rgba(.5 * (.5 + e * .5))); gr.addColorStop(1, rgba(0));
+    gr.addColorStop(0, rgba(.3 * (.5 + e * .5))); gr.addColorStop(1, rgba(0));
     g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, S * .32 * pulse, 0, TAU); g.fill();
 
     // steady orb: Siri-style fluid core inside an arc-reactor frame
@@ -375,20 +519,32 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
     g.save();
     g.beginPath(); g.arc(cx, cy, oR * .8, 0, TAU); g.clip();
     g.globalCompositeOperation = 'source-over';
-    g.fillStyle = 'rgba(4,12,22,.6)'; g.fillRect(cx - oR, cy - oR, oR * 2, oR * 2);
+    g.fillStyle = 'rgba(4,12,22,.92)'; g.fillRect(cx - oR, cy - oR, oR * 2, oR * 2);
     g.globalCompositeOperation = 'lighter';
-    [[[90, 220, 255], .9, 0, .38, .3, .62], [[60, 110, 255], -.7, 2, .34, .4, .58], [[170, 110, 255], .6, 4, .4, .32, .55], [[210, 250, 255], -1.1, 1, .3, .28, .4]].forEach(([c, sp, ph, rx, ry, sz]) => {
-      const k = sp * (1 + e * 2.2), m = .7 + e * .6, cc = mix(c);
-      const x = cx + Math.cos(t * k + ph) * oR * rx * m, y = cy + Math.sin(t * k * 1.3 + ph) * oR * ry * m, rad = oR * sz * (1 + .08 * Math.sin(t * 2 + ph));
+    [[[90, 220, 255], .25, 0, .22, .18, .7], [[110, 150, 255], -.2, 3, .2, .2, .6]].forEach(([c, sp, ph, rx, ry, sz]) => {
+      const cc = mix(c), x = cx + Math.cos(t * sp + ph) * oR * rx, y = cy + Math.sin(t * sp * 1.2 + ph) * oR * ry, rad = oR * sz;
       const bg = g.createRadialGradient(x, y, 0, x, y, rad);
-      bg.addColorStop(0, 'rgba(' + cc + ',' + (.5 + .35 * e) + ')'); bg.addColorStop(1, 'rgba(' + cc + ',0)');
+      bg.addColorStop(0, 'rgba(' + cc + ',' + (.45 + .1 * voiceAmt) + ')'); bg.addColorStop(1, 'rgba(' + cc + ',0)');
       g.fillStyle = bg; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
     });
+    // subtle waveform, only visible while someone speaks
+    if (voiceAmt > .01){
+      const lv = talking ? .3 + .7 * env[0] : Math.min(1, Math.max(0, lvl - .06) * 2.1), sv = talking ? 1.9 : 1 + lv * 1.2, amp = oR * (.015 + .42 * lv) * voiceAmt * (talking ? 1 + .22 * Math.sin(t * 9) : 1), wl = [[.55, 3, 1.1, .8], [.4, 5, -1.6, .45], [.3, 8, 2.2, .3]];
+      wl.forEach(([w, f, sp, al], k) => {
+        g.beginPath();
+        for (let i = 0; i <= 60; i++){
+          const u = i / 60, x = cx - oR * .72 + u * oR * 1.44, tap = Math.sin(u * Math.PI);
+          const y = cy + (Math.sin(u * TAU * f * .5 + t * sp * 3 * sv + k) + .35 * Math.sin(u * TAU * f * .8 - t * sp * 4.5 * sv)) * amp * w * tap * (.55 + .5 * env[(k + 1) % 3]);
+          i ? g.lineTo(x, y) : g.moveTo(x, y);
+        }
+        g.lineWidth = 2 - k * .6; g.strokeStyle = 'rgba(255,255,255,' + (Math.min(1, al * (.5 + .7 * lv)) * voiceAmt) + ')'; g.stroke();
+      });
+    }
     const hl = g.createRadialGradient(cx, cy, 0, cx, cy, oR * .3);
-    hl.addColorStop(0, 'rgba(255,255,255,' + (.45 + .3 * e + .08 * Math.sin(t * 3)) + ')'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    hl.addColorStop(0, 'rgba(255,255,255,' + (.36 + .1 * voiceAmt + .04 * Math.sin(t * 2)) + ')'); hl.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = hl; g.beginPath(); g.arc(cx, cy, oR * .3, 0, TAU); g.fill();
     g.restore();
-    g.lineCap = 'butt'; g.lineWidth = oR * .12; g.strokeStyle = rgba(.5 + e * .2);
+    g.lineCap = 'butt'; g.lineWidth = oR * .1; g.strokeStyle = rgba(.4);
     for (let j = 0; j < 10; j++){ const st = spin * .04 + j * TAU / 10; g.beginPath(); g.arc(cx, cy, oR * .9, st, st + TAU / 10 * .7); g.stroke(); }
     g.lineCap = 'round';
     g.lineWidth = 2; g.strokeStyle = rgba(.75); g.beginPath(); g.arc(cx, cy, oR * .8, 0, TAU); g.stroke();
@@ -396,79 +552,84 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
     g.lineWidth = 1; g.strokeStyle = rgba(.35); g.beginPath(); g.arc(cx, cy, oR * 1.14, 0, TAU); g.stroke();
 
     // rotating arc rings
-    [[.52, 3, .6, 3, .7], [.62, 5, -.4, 1.5, .5], [.74, 2, .3, 5, .4], [.8, 8, -.25, 1, .45]].forEach(([rad, k, sp, w, al]) => {
-      g.lineWidth = w; g.strokeStyle = rgba(al * (.6 + e * .5));
+    [[.62, 3, .5, 1.5, .5], [.78, 2, -.3, 1.2, .4]].forEach(([rad, k, sp, w, al]) => {
+      g.lineWidth = w; g.strokeStyle = rgba(al * .35 * (.6 + e * .4));
       for (let j = 0; j < k; j++){
         const st = spin * sp + j * TAU / k;
         g.beginPath(); g.arc(cx, cy, S * rad, st, st + TAU / k * .55); g.stroke();
       }
     });
 
-    // tick ring with flicker
-    for (let i = 0; i < 96; i++){
-      const a = i / 96 * TAU + spin * .1, long = i % 6 === 0;
-      const lit = Math.sin(t * 3 + i * 12.9) > .96 - e * .1;
-      const r1 = S * .9, r2 = r1 + S * (long ? .045 : .02);
-      g.beginPath(); g.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
-      g.lineWidth = long ? 1.6 : 1; g.strokeStyle = rgba(lit ? .95 : .3); g.stroke();
-    }
-
-    // radar sweep with trail
-    const sw = t * (.8 + e * 1.5);
-    g.lineWidth = 1.4;
-    for (let k = 0; k < 26; k++){
-      const a = sw - k * .035;
-      g.beginPath(); g.moveTo(cx + Math.cos(a) * S * .36, cy + Math.sin(a) * S * .36); g.lineTo(cx + Math.cos(a) * S * .88, cy + Math.sin(a) * S * .88);
-      g.strokeStyle = rgba(.22 * (1 - k / 26) * (.5 + e * .5)); g.stroke();
-    }
-
     // orbiting particles
     parts.forEach(p => {
       p.a += p.v * dt * (1 + e * 2.2);
       const rr = S * p.r * (1 + .03 * Math.sin(t + p.p)), sg = Math.sign(p.v);
-      g.lineWidth = .8; g.strokeStyle = rgba(.25);
+      g.lineWidth = .8; g.strokeStyle = rgba(.12);
       g.beginPath(); g.arc(cx, cy, rr, p.a - sg * .14, p.a, sg < 0); g.stroke();
-      g.fillStyle = rgba(.7); g.beginPath(); g.arc(cx + Math.cos(p.a) * rr, cy + Math.sin(p.a) * rr, p.s, 0, TAU); g.fill();
+      g.fillStyle = rgba(.4); g.beginPath(); g.arc(cx + Math.cos(p.a) * rr, cy + Math.sin(p.a) * rr, p.s, 0, TAU); g.fill();
     });
 
     // ripples from the core
     rip += dt;
-    if (rip > (talking ? .55 : thinking ? .8 : live ? 1.8 : 3.5)){ rip = 0; ripples.push({ r: S * .34, a: .5 }); }
+    if (rip > (talking ? 1.4 : thinking ? 2.2 : live ? 4 : 8)){ rip = 0; ripples.push({ r: S * .34, a: .22 }); }
     for (let i = ripples.length - 1; i >= 0; i--){
       const q = ripples[i]; q.r += dt * S * (.5 + e * .5); q.a -= dt * .35;
       if (q.a <= 0 || q.r > S * 1.1){ ripples.splice(i, 1); continue; }
-      g.lineWidth = 1.2; g.strokeStyle = rgba(q.a); g.beginPath(); g.arc(cx, cy, q.r, 0, TAU); g.stroke();
+      g.lineWidth = 1; g.strokeStyle = rgba(q.a); g.beginPath(); g.arc(cx, cy, q.r, 0, TAU); g.stroke();
     }
 
     // title and meaning of the name, above the orb
     {
-      g.globalCompositeOperation = 'source-over';
-      g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-      g.save();
-      g.shadowColor = rgba(.8); g.shadowBlur = 12 + e * 10;
-      g.fillStyle = 'rgba(230,243,251,.95)';
-      g.font = '800 ' + Math.round(S * .07) + 'px Orbitron, "Arial Black", sans-serif';
-      try { g.letterSpacing = Math.round(S * .012) + 'px'; } catch (_) {}
-      g.fillText('JARVIS', cx, cy - S * .455);
-      g.restore();
+      h.clearRect(0, 0, W, H);
+      h.globalCompositeOperation = 'source-over';
+      {
+        h.font = '9px "Courier New", monospace'; h.textAlign = 'center';
+        const cols = [10, 23, W - 23, W - 10], rows = Math.ceil(H / 11), glyph = '01ABCDEF<>/{}=+';
+        cols.forEach((x, ci) => {
+          const head = (t * (5 + ci * 1.7) + ci * 13) % (rows + 16);
+          for (let k = 0; k < 16; k++){
+            const row = Math.floor(head) - k; if (row < 0 || row > rows) continue;
+            const ch = glyph[Math.floor(row * 7 + ci * 3 + Math.floor(t * (k ? 1 : 6))) % glyph.length];
+            h.fillStyle = rgba(k ? .2 * (1 - k / 16) : .55);
+            h.fillText(ch, x, row * 11);
+          }
+        });
+        if (t - memT > 2){ memT = t; memN = facts().length; }
+        const st = talking ? 'SPEAKING' : thinking ? 'THINKING' : live ? 'LISTENING' : 'STANDBY';
+        [[14, cy - S * .62, 'left', 'SYSTEM', st], [W - 14, cy - S * .62, 'right', 'CLOCK', new Date().toLocaleTimeString('en-GB'), new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' }).toUpperCase().replace(/,/g, '')],
+         [14, cy + S * .5, 'left', 'MEMORY', memN + ' FACTS'], [W - 14, cy + S * .5, 'right', 'NETWORK', navigator.onLine ? 'ONLINE' : 'OFFLINE']].forEach(([x, y, al, lab, val, sub]) => {
+          h.textAlign = al;
+          h.font = '600 9px Rajdhani, "Courier New", monospace'; h.fillStyle = rgba(.2); h.fillText(lab, x, y);
+          h.font = '700 12px Rajdhani, "Courier New", monospace'; h.fillStyle = rgba(.42); h.fillText(val, x, y + 13);
+          if (sub){ h.font = '600 10px Rajdhani, "Courier New", monospace'; h.fillStyle = rgba(.3); h.fillText(sub, x, y + 25); }
+        });
+      }
+      h.textAlign = 'center'; h.textBaseline = 'alphabetic';
+      h.save();
+      h.shadowColor = rgba(.8); h.shadowBlur = 12 + e * 10;
+      h.fillStyle = 'rgba(230,243,251,.95)';
+      h.font = '800 ' + Math.round(S * .07) + 'px Orbitron, "Arial Black", sans-serif';
+      try { h.letterSpacing = Math.round(S * .012) + 'px'; } catch (_) {}
+      h.fillText('JARVIS', cx, cy - S * .455);
+      h.restore();
 
-      g.save();
-      g.textAlign = 'left';
+      h.save();
+      h.textAlign = 'left';
       const fs = Math.round(S * .036), gap = fs * .45;
       const fb = '700 ' + fs + 'px Rajdhani, "Arial Narrow", sans-serif', fn = '500 ' + fs + 'px Rajdhani, "Arial Narrow", sans-serif';
       let total = gap * 5;
       const segs = [['J', 'ust'], ['A', ''], ['R', 'ather'], ['V', 'ery'], ['I', 'ntelligent'], ['S', 'ystem']].map(([a, b]) => {
-        g.font = fb; const wa = g.measureText(a).width; g.font = fn; const wb = g.measureText(b).width;
+        h.font = fb; const wa = h.measureText(a).width; h.font = fn; const wb = h.measureText(b).width;
         total += wa + wb; return [a, b, wa, wb];
       });
       let tx = cx - total / 2;
       const ty = cy - S * .395;
       segs.forEach(([a, b, wa, wb]) => {
-        g.font = fb; g.fillStyle = rgba(1); g.fillText(a, tx, ty);
-        g.font = fn; g.fillStyle = 'rgba(200,225,240,.8)'; g.fillText(b, tx + wa, ty);
+        h.font = fb; h.fillStyle = rgba(1); h.fillText(a, tx, ty);
+        h.font = fn; h.fillStyle = 'rgba(200,225,240,.8)'; h.fillText(b, tx + wa, ty);
         tx += wa + wb + gap;
       });
-      g.restore();
+      h.restore();
     }
 
     if (!still) requestAnimationFrame(frame);
@@ -479,7 +640,7 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
   if (!still) requestAnimationFrame(frame);
 })();
 
-add('ai', 'Good day, sir. Jarvis is online. How can I be of service to you, sir?');
+add('ai', 'Good day, sir. Jarvis is online. Add your API key under Settings to begin.');
 </script>
 </body>
 </html>
