@@ -111,9 +111,15 @@ function fillVoices(){
   voices().forEach(v => { const o = document.createElement('option'); o.value = v.voiceURI; o.textContent = v.name + ' (' + v.lang + ')'; if (v.voiceURI === cur) o.selected = true; sel.appendChild(o); });
 }
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = fillVoices;
-let heardNow = false, live = false, busy = false, sayId = 0, pend = 0, fin = true;
-function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec) setTimeout(listen, 250); }
-function speechStart(){ sayId++; pend = 0; fin = false; if (window.speechSynthesis) speechSynthesis.cancel(); return sayId; }
+let heardNow = false, live = false, busy = false, sayId = 0, pend = 0, fin = true, ttsEnd = 0, ttsUnlocked = false;
+function unlockSpeech(){
+  if (ttsUnlocked || !window.speechSynthesis) return;
+  ttsUnlocked = true;
+  try { const u = new SpeechSynthesisUtterance('.'); u.volume = 0; speechSynthesis.speak(u); } catch(e){}
+}
+['touchstart', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockSpeech, { passive:true }));
+function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec){ meterOn(); setTimeout(listen, 250); } }
+function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; if (live) meterOff(); if (window.speechSynthesis) speechSynthesis.cancel(); return sayId; }
 function speechChunk(text, id){
   text = text.trim();
   if (!text || !window.speechSynthesis || id !== sayId) return;
@@ -122,8 +128,13 @@ function speechChunk(text, id){
   const v = pickVoice();
   if (v){ u.voice = v; u.lang = v.lang; }
   pend++;
-  u.onend = u.onerror = () => { if (id !== sayId) return; pend--; if (pend <= 0 && fin) done(id); };
+  const startAt = Math.max(Date.now(), ttsEnd); ttsEnd = startAt + text.length * 85 + 800;
+  let fired = false;
+  const finish = () => { if (fired || id !== sayId) return; fired = true; clearTimeout(to); pend--; if (pend <= 0 && fin) done(id); };
+  const to = setTimeout(finish, ttsEnd - Date.now() + 2500);
+  u.onend = u.onerror = finish;
   document.body.classList.add('talk');
+  try { speechSynthesis.resume(); } catch(_){}
   speechSynthesis.speak(u);
 }
 function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) done(id); }
@@ -408,6 +419,7 @@ function stopLive(){
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 async function startLive(){
+  unlockSpeech();
   if (!SR){ add('sys', 'Voice input is not available here, sir. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
   try {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
@@ -427,15 +439,20 @@ $('vm').onclick = e => { if (e.target.id === 'vm' || e.target.closest('#vmx') ||
 
 /* ---------- Voice screen: live mic level ---------- */
 let lvl = 0, meterCtx = null, meterAn = null, meterStream = null;
+let meterBusy = false;
 async function meterOn(){
+  if (meterAn || meterBusy || !navigator.mediaDevices) return;
+  meterBusy = true;
   try {
-    if (meterAn) return;
-    meterStream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+    const st = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+    if (!live || pend > 0 || document.body.classList.contains('talk')){ st.getTracks().forEach(t => t.stop()); return; }
+    meterStream = st;
     const AC = window.AudioContext || window.webkitAudioContext;
     meterCtx = new AC();
+    try { if (meterCtx.state === 'suspended') meterCtx.resume(); } catch(e){}
     const src = meterCtx.createMediaStreamSource(meterStream);
     meterAn = meterCtx.createAnalyser(); meterAn.fftSize = 256; src.connect(meterAn);
-  } catch(e){ meterAn = null; }
+  } catch(e){ meterAn = null; } finally { meterBusy = false; }
 }
 function meterOff(){
   try { if (meterStream) meterStream.getTracks().forEach(t => t.stop()); if (meterCtx) meterCtx.close(); } catch(e){}
@@ -460,6 +477,9 @@ function meterOff(){
   }
   requestAnimationFrame(tick);
 })();
+
+setInterval(() => { if (live && !busy && !rec && !document.hidden){ meterOn(); listen(); } }, 1500);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && live && !busy && !rec) setTimeout(listen, 300); });
 
 /* ---------- Settings ---------- */
 $('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
