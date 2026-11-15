@@ -17,20 +17,23 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
 h1{font:800 18px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.16em;margin:0}
-header button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 12px;font-size:14px}
-.brand{display:flex;flex-direction:column;gap:4px}
-.by{font:500 11px/1 Rajdhani,"Arial Narrow",sans-serif;letter-spacing:.14em;color:var(--dim);opacity:.45}
-#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+header button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 10px;font-size:13px}
+.brand{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.hbtns{display:flex;gap:6px;align-items:center}
+.ttl{display:flex;align-items:center;gap:8px}
+.mk{font:700 10px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.14em;color:var(--arc);border:1px solid rgba(111,211,255,.55);border-radius:4px;padding:3px 5px 3px 7px;opacity:.85}
+.by{font:500 11px/1 Rajdhani,"Arial Narrow",sans-serif;letter-spacing:.08em;color:var(--dim);opacity:.45;white-space:normal;line-height:1.25}
+#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%)}
 .msg{max-width:86%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
 .me{align-self:flex-end;background:rgba(28,51,69,.9)}
 .ai{align-self:flex-start;background:rgba(14,27,39,.88);border:1px solid var(--line)}
 .src{display:block;color:var(--arc);font-size:13px;margin-top:6px}
 .sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
 .alt{margin-top:8px;background:none;border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:14px}
-#bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
-#txt{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
+#bar{display:flex;gap:6px;align-items:center;padding:8px 10px;border-top:1px solid var(--line)}
+#txt{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
 #txt:focus{border-color:var(--arc)}
-#send{background:none;border:none;color:var(--arc);font-size:16px;padding:8px 6px;flex:none}
+#send{width:42px;height:42px;flex:none;border-radius:50%;border:none;background:var(--arc);color:var(--bg);display:flex;align-items:center;justify-content:center;padding:0}
 #mic{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0}
 #mic.on{background:var(--arc);color:var(--bg);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 10px rgba(111,211,255,.2)}}
@@ -54,18 +57,39 @@ header,#log,#bar{position:relative;z-index:1}
 #vm.think #vmic{border-color:var(--warn);color:var(--warn);box-shadow:0 0 26px rgba(255,180,84,.45)}
 #vm.speak #vmic{box-shadow:0 0 calc(14px + var(--lvl) * 40px) rgba(111,211,255,.75)}
 #vmt{margin-top:14px;color:var(--dim);font:600 14px/1 Rajdhani,sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.pics{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
+.pics img{height:96px;width:auto;max-width:180px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none;cursor:pointer}
+.pics-src{display:block;color:var(--dim);font-size:12px;margin-top:4px}
+.gimg{display:inline-block;margin-top:8px;color:var(--arc);font-size:14px;border:1px solid var(--line);border-radius:8px;padding:5px 10px;text-decoration:none}
+#lb{position:fixed;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,8,13,.92);padding:16px}
+#lb.open{display:flex}
+#lb img{max-width:96vw;max-height:78vh;border-radius:10px}
+#lb span{color:var(--dim);font-size:13px;margin-top:10px;text-align:center}
+#clip{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0}
+#att{display:none;align-items:center;gap:10px;padding:6px 14px;border-top:1px solid var(--line);position:relative;z-index:1;background:rgba(7,16,24,.7)}
+#att.on{display:flex}
+#att img{height:46px;width:46px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+#att span{flex:1;color:var(--dim);font-size:13px}
+#att button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:50%;width:30px;height:30px}
+#simple{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 10px;font-size:13px;flex:none}
+#simple.on{border-color:var(--arc);color:var(--arc)}
+body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 </style>
 </head>
 <body>
 <canvas id="hud" aria-hidden="true"></canvas>
 <canvas id="hudt" aria-hidden="true"></canvas>
+<div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><h1>JARVIS</h1><span class="by">by DMS (last update: November 14, 2026)</span></div><button id="cfg">Settings</button></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK I</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
+<div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
-  <input id="txt" placeholder="Ask Jarvis, or say “remind me in 10 minutes to…”" autocomplete="off">
+  <button id="clip" aria-label="Attach a picture"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg></button>
+  <input id="file" type="file" accept="image/*" hidden>
+  <input id="txt" placeholder="Ask Jarvis…" autocomplete="off">
   <button id="mic" aria-label="Speak"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
-  <button id="send">Send</button>
+  <button id="send" aria-label="Send"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
 </div>
 
 <dialog id="dlg">
@@ -74,10 +98,12 @@ header,#log,#bar{position:relative;z-index:1}
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
   <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
+  <label for="ik">Google Images key (optional)</label><input id="ik" type="password" autocomplete="off">
+  <label for="ic">Google search engine ID (optional)</label><input id="ic" autocomplete="off">
   <label for="mem">Memory (one fact per line)</label><textarea id="mem" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:15px"></textarea>
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="vc">Voice</label><select id="vc"></select>
-  <div class="row"><button id="test">Test voice</button></div>
+  <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
   <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
   <div class="row"><button id="cancel">Close</button><button id="save" class="go">Save</button></div>
 </dialog>
@@ -90,7 +116,8 @@ const store = {
   set(k, v){ try { localStorage.setItem(k, v) } catch(e){} }
 };
 const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini') });
-let history = [];
+let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
+function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
 
 function add(cls, text, source){
   const d = document.createElement('div');
@@ -112,36 +139,60 @@ function fillVoices(){
 }
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = fillVoices;
 let heardNow = false, live = false, busy = false, sayId = 0, pend = 0, fin = true, ttsEnd = 0, ttsUnlocked = false;
+let ttsConfirmed = false, lastUnlock = 0, wakeShown = false;
 function unlockSpeech(){
-  if (ttsUnlocked || !window.speechSynthesis) return;
-  ttsUnlocked = true;
-  try { const u = new SpeechSynthesisUtterance('.'); u.volume = 0; speechSynthesis.speak(u); } catch(e){}
+  if (!window.speechSynthesis) return;
+  try {
+    speechSynthesis.resume();
+    if (!ttsConfirmed && Date.now() - lastUnlock > 800){
+      lastUnlock = Date.now();
+      const u = new SpeechSynthesisUtterance('ok'); u.volume = .03; u.rate = 2; u.lang = 'en-GB';
+      u.onstart = () => { ttsConfirmed = true; };
+      speechSynthesis.speak(u);
+    }
+  } catch(e){}
 }
-['touchstart', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockSpeech, { passive:true }));
-function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec){ meterOn(); setTimeout(listen, 250); } }
-function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; if (live) meterOff(); if (window.speechSynthesis) speechSynthesis.cancel(); return sayId; }
+['touchend', 'pointerup', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockSpeech, { passive:true }));
+function wakeHint(){
+  if (wakeShown) return; wakeShown = true;
+  const d = add('sys', 'My voice is asleep, sir. ');
+  const b = document.createElement('button'); b.className = 'alt'; b.textContent = 'Tap to wake voice';
+  b.onclick = () => { b.remove(); d.remove(); wakeShown = false; ttsConfirmed = false; say('Voice online, sir.'); };
+  d.appendChild(b);
+}
+function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec){ listen(); setTimeout(meterOn, 400); } }
+function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
 function speechChunk(text, id){
   text = text.trim();
   if (!text || !window.speechSynthesis || id !== sayId) return;
   const u = new SpeechSynthesisUtterance(text.slice(0, 400));
   u.lang = 'en-GB'; u.rate = 1.05;
-  const v = pickVoice();
+  let v = pickVoice();
+  if (!v && window.speechSynthesis) { try { speechSynthesis.getVoices(); v = pickVoice(); } catch(_){} }
   if (v){ u.voice = v; u.lang = v.lang; }
   pend++;
   const startAt = Math.max(Date.now(), ttsEnd); ttsEnd = startAt + text.length * 85 + 800;
   let fired = false;
   const finish = () => { if (fired || id !== sayId) return; fired = true; clearTimeout(to); pend--; if (pend <= 0 && fin) done(id); };
   const to = setTimeout(finish, ttsEnd - Date.now() + 2500);
+  let started = false;
+  u.onstart = () => { started = true; ttsConfirmed = true; };
   u.onend = u.onerror = finish;
   document.body.classList.add('talk');
   try { speechSynthesis.resume(); } catch(_){}
   speechSynthesis.speak(u);
+  setTimeout(() => {
+    if (started || fired || id !== sayId) return;
+    try { speechSynthesis.cancel(); speechSynthesis.resume(); speechSynthesis.speak(u); } catch(_){}
+    setTimeout(() => { if (!started && !fired && id === sayId) wakeHint(); }, 1500);
+  }, 1200);
 }
+setInterval(() => { try { if (window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch(e){} }, 10000);
 function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) done(id); }
 function say(text){ const id = speechStart(); speechChunk(text.replace(/[*_#`]/g, ''), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const BASE_SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences unless asked for more. Plain text only, no markdown, no lists.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences, except when a list is requested (see the list rule below). Plain text only: no markdown symbols such as asterisks or hashes. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
 
 
 /* ---------- Clock, memory ---------- */
@@ -153,7 +204,29 @@ function facts(){ try { return JSON.parse(store.get('facts','[]')); } catch(e){ 
 function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-60))); }
 function sysPrompt(){
   const f = facts();
-  return BASE_SYSTEM + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
+  return BASE_SYSTEM + (simpleOn ? ' ' + SIMPLE_RULE : '') + ' If the user attaches a picture, look at it carefully and describe or explain what it shows. If the message contains a web link, read that page and explain what it is and what it says.' + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it. Never volunteer or mention any activation date, startup date, creation date or version, and do not mention today\'s date unless asked. Only if the user asks when you were created, activated or last updated, answer that you were created by DMS and were last updated on November 15, 2026.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
+}
+
+
+/* ---------- Automatic memory (one small Gemini call, only when the message sounds personal) ---------- */
+const personal = q => /\b(my|i am|i'm|i like|i love|i hate|i prefer|i work|i live|call me|remind|birthday|favou?rite|wife|husband|son|daughter|mother|father|mom|dad|brother|sister|friend|tomorrow|next week|appointment|plan|going to)\b/i.test(q);
+async function learn(q, a){
+  try {
+    const c = cfg();
+    if (!c.gk || !personal(q) || /^\s*(remember|forget)\b/i.test(q)) return;
+    const prompt = 'From this exchange, list lasting facts worth remembering about the user (name, people, preferences, routines, plans). One short fact per line, no numbering. If there is nothing lasting, reply with exactly NONE.\n\nUser: ' + q + '\nAssistant: ' + a.slice(0, 300);
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:prompt }] }], generationConfig: genCfg(c.gm, 120) })
+    });
+    if (!r.ok) return;
+    const j = await r.json();
+    const out = ((j.candidates && j.candidates[0].content.parts) || []).map(p => p.text || '').join('').trim();
+    if (!out || /^none\b/i.test(out)) return;
+    const have = facts(), low = have.map(x => x.toLowerCase());
+    const add = out.split('\n').map(x => x.replace(/^[-*\d.\s]+/, '').trim()).filter(x => x.length > 3 && x.length < 140 && !/^none\b/i.test(x) && !low.includes(x.toLowerCase()));
+    if (add.length) saveFacts(have.concat(add.slice(0, 3)));
+  } catch(e){}
 }
 
 function genCfg(m, max){
@@ -161,10 +234,20 @@ function genCfg(m, max){
   if (/gemini-2\.5-flash/.test(m)) g.thinkingConfig = { thinkingBudget: 0 };
   return g;
 }
-function gBody(q, model, extra){
-  const contents = history.concat([{ role:'user', text:(extra ? extra + '\n\nQuestion: ' : '') + q }]).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
-  return JSON.stringify({ systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model) });
+const isList = q => /\b(top\s*\d+|best\s*\d+|\d+\s*best|list|ranking|rank|recommend(?:ation)?s?|suggest(?:ion)?s?|compare|comparison)\b/i.test(q);
+function gBody(q, model, extra, useTools){
+  const contents = history.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
+  const parts = [{ text:(extra ? extra + '\n\nQuestion: ' : '') + q }];
+  if (curImg) parts.push({ inlineData:{ mimeType:curImg.mime, data:curImg.data } });
+  contents.push({ role:'user', parts });
+  const tools = [];
+  if (useTools !== false) tools.push({ google_search:{} });
+  if (urlIn(q).length) tools.push({ url_context:{} });
+  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, isList(q) ? 2000 : 500) };
+  if (tools.length) body.tools = tools;
+  return JSON.stringify(body);
 }
+let curImg = null;
 async function askGemini(q, extra){
   const c = cfg();
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), {
@@ -174,14 +257,26 @@ async function askGemini(q, extra){
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
   return j.candidates[0].content.parts.map(p => p.text || '').join('');
 }
-async function streamGemini(q, cb, model, extra){
+let searchedFlag = false, siteList = [];
+const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
+async function streamGemini(q, cb, model, extra, useTools, plain){
   const c = cfg();
-  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(c.gk), {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model, extra)
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + (plain ? ':generateContent?' : ':streamGenerateContent?alt=sse&') + 'key=' + encodeURIComponent(c.gk), {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model, extra, useTools)
   });
   if (!r.ok){ let m = 'Gemini error'; try { const j = await r.json(); m = (j.error && j.error.message) || m; } catch(_){} throw new Error(m); }
+  if (plain){
+    const j = await r.json(), cand = j.candidates && j.candidates[0];
+    const txt = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join('');
+    const gm = cand && cand.groundingMetadata;
+    if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
+    if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const t2 = ch.web && (ch.web.title || ch.web.uri); if (t2 && !siteList.includes(t2)) siteList.push(t2); });
+    if (txt) cb(txt);
+    return txt;
+  }
   const rd = r.body.getReader(), dec = new TextDecoder();
   let buf = '', all = '';
+  searchedFlag = false; siteList = [];
   for (;;){
     const { done, value } = await rd.read(); if (done) break;
     buf += dec.decode(value, { stream:true });
@@ -192,6 +287,9 @@ async function streamGemini(q, cb, model, extra){
       try {
         const j = JSON.parse(line.slice(5));
         const t = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('');
+        const gm = j.candidates && j.candidates[0] && j.candidates[0].groundingMetadata;
+        if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
+        if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const t2 = ch.web && (ch.web.title || ch.web.uri); if (t2 && !siteList.includes(t2)) siteList.push(t2); });
         if (t){ all += t; cb(all); }
       } catch(_){}
     }
@@ -224,10 +322,43 @@ async function referee(q, a, b){
 }
 
 function cleanSpeech(t){ return t.replace(/[*_#`]/g, ''); }
+function renewText(){
+  const now = new Date();
+  const la = new Date(now.toLocaleString('en-US', { timeZone:'America/Los_Angeles' }));
+  const next = new Date(la); next.setHours(24, 0, 0, 0);
+  const ms = next - la, end = new Date(now.getTime() + ms);
+  const hrs = Math.floor(ms / 3600000), mins = Math.round(ms % 3600000 / 60000);
+  const when = end.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hour12:false }) + (end.toDateString() === now.toDateString() ? ' today' : ' tomorrow');
+  return 'It renews at ' + when + ' your time, in about ' + hrs + ' hours and ' + mins + ' minutes.';
+}
+function friendlyError(e){
+  const m = (e && e.message) || '';
+  const lm = limitMsg(e); if (lm) return lm;
+  if (/API key|API_KEY|PERMISSION_DENIED|unauthenticated/i.test(m)) return 'Sir, Google rejected the key. Please paste the Gemini key again in Settings and tap Save.';
+  if (/not found|not supported|invalid model|models\//i.test(m)) return 'Sir, that Gemini model name was not accepted. Open Settings and clear the model box so I can use the default.';
+  if (/failed to fetch|load failed|network|cancelled|aborted/i.test(m)) return 'Sir, Safari could not complete the request to Google. If your internet works, a content blocker, VPN or Private Relay may be blocking it. Open Settings and tap Test connection so I can find the exact step that fails.';
+  return 'My apologies, sir. ' + m.slice(0, 160);
+}
+function limitMsg(e){
+  const m = (e && e.message) || '';
+  if (/quota|rate.?limit|exhaust|429|resource.?exhausted|too many requests/i.test(m)) return 'Sir, you have used up your Gemini allowance for now. ' + renewText();
+  return null;
+}
+let picTopicNow = '';
+function listSpeech(t){
+  const lines = t.split('\n').map(x => x.trim()).filter(Boolean);
+  const items = lines.filter(l => /^\d+[.)]\s/.test(l));
+  const intro = lines.find(l => !/^\d+[.)]\s/.test(l)) || 'Here is your list, sir.';
+  if (!items.length) return t;
+  const top = items.slice(0, 3).map((l, i) => (i + 1) + ', ' + l.replace(/^\d+[.)]\s*/, '').split(/:\s|\s[-\u2013\u2014]\s/)[0]).join('. ');
+  return intro + ' ' + top + (items.length > 3 ? '. The full list of ' + items.length + ' is on your screen, sir.' : '.');
+}
 async function thinkStream(q, extra){
-  const c = cfg(), wait = add('sys', 'Thinking…'), id = speechStart();
+  const c = cfg(), wait = add('sys', needsWeb(q) ? 'Searching Google…' : 'Thinking…'), id = speechStart();
   let el = null, tn = null, full = '', spoken = 0;
+  const listMode = isList(q);
   const flush = final => {
+    if (listMode) return;
     const rest = full.slice(spoken);
     if (final){ if (rest.trim()) speechChunk(cleanSpeech(rest), id); spoken = full.length; return; }
     const m = rest.match(/^[\s\S]*[.!?](?=\s)/);
@@ -238,16 +369,22 @@ async function thinkStream(q, extra){
     full = all; tn.data = all; log.scrollTop = log.scrollHeight; flush(false);
   };
   try {
-    try { await streamGemini(q, onText, c.gm, extra); }
-    catch (err){
-      if (full) throw err;
-      await streamGemini(q, onText, c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite', extra);
+    const bk = c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite';
+    const tries = [[c.gm, true, false], [c.gm, false, false], [c.gm, false, true], [bk, false, true]];
+    let lastErr = null;
+    for (const [mdl, tl, pl] of tries){
+      try { searchedFlag = false; siteList = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; break; }
+      catch (err){ lastErr = err; if (full || /API key|API_KEY/i.test(err.message || '')) break; }
     }
+    if (lastErr) throw lastErr;
     if (!full.trim()) throw new Error('No answer came back. Please try again.');
-    flush(true); speechEnd(id);
+    if (listMode) speechChunk(cleanSpeech(listSpeech(full)), id); else flush(true);
+    speechEnd(id);
+    if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
+    if (searchedFlag && el){ const n = document.createElement('span'); n.className = 'src'; n.textContent = siteList.length ? 'Sources: ' + siteList.slice(0, 5).join(', ') : 'Searched the web'; el.appendChild(n); }
     const prior = history.slice();
     history.push({ role:'user', text:q }, { role:'ai', text:full });
-    history = history.slice(-12);
+    history = history.slice(-12); saveHist(); learn(q, full);
     if (c.ok){
       const b = document.createElement('button');
       b.className = 'alt'; b.textContent = 'Not convinced';
@@ -261,15 +398,14 @@ async function thinkStream(q, extra){
     }
   } catch(e){
     wait.remove();
-    add('ai', 'My apologies, sir. ' + e.message);
-    say('My apologies, sir. Something went wrong.');
-  }
+    const fe = friendlyError(e); add('ai', fe); say(fe);
+  } finally { curImg = null; }
 }
 
 async function think(q, extra){
   const c = cfg();
   if (!c.gk && !c.ok){ const m = 'Sir, I need at least one API key. Tap Settings to add it.'; add('ai', m); say(m); return; }
-  if (c.gk && (store.get('mode','fast') !== 'best' || !c.ok)) return thinkStream(q, extra);
+  if (c.gk && (curImg || urlIn(q).length || store.get('mode','fast') !== 'best' || !c.ok)) return thinkStream(q, extra);
   const wait = add('sys', 'Thinking…');
   try {
     let best, other, bestName, otherName;
@@ -294,12 +430,11 @@ async function think(q, extra){
       el.appendChild(b);
     }
     history.push({ role:'user', text:q }, { role:'ai', text:best });
-    history = history.slice(-12);
+    history = history.slice(-12); saveHist(); learn(q, best);
     say(best);
   } catch(e){
     wait.remove();
-    const m = 'My apologies, sir. ' + e.message;
-    add('ai', m); say('My apologies, sir. Something went wrong.');
+    const m = friendlyError(e); add('ai', m); say(m);
   }
 }
 
@@ -334,6 +469,86 @@ async function weatherFor(q){
 }
 const isWeather = q => /\b(weather|forecast|temperature|rain|raining|umbrella|snow|sunny|cold outside|hot outside)\b/i.test(q);
 
+
+/* ---------- Pictures: Wikimedia Commons first, then Google Images ---------- */
+const wantsPics = q => /\b(pictures?|photos?|images?|pics?|show me|what does .+ look like|look like)\b/i.test(q);
+function picTopic(q){
+  let t = q.replace(/\b(please|can you|could you|jarvis|show me|show|give me|find|search for|search|look up|pictures?|photos?|images?|pics?|of|about|for|what does|look like|looks like|a|an|the|some)\b/ig, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t || q;
+}
+async function wikiPics(topic){
+  const u = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=12&gsrsearch=' + encodeURIComponent(topic + ' filetype:bitmap') + '&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=640';
+  const j = await (await fetch(u)).json();
+  const pages = j.query ? Object.values(j.query.pages) : [];
+  return pages.map(p => p.imageinfo && p.imageinfo[0]).filter(i => i && i.thumburl && /\.(jpe?g|png|webp)/i.test(i.url))
+    .map(i => ({ src:i.thumburl, full:i.url, credit:(i.extmetadata && i.extmetadata.Artist ? i.extmetadata.Artist.value.replace(/<[^>]+>/g, '') : 'Wikimedia Commons').slice(0, 60), page:i.descriptionurl })).slice(0, 4);
+}
+async function googlePics(topic){
+  const k = store.get('ik',''), cx = store.get('ic','');
+  if (!k || !cx) return [];
+  const j = await (await fetch('https://www.googleapis.com/customsearch/v1?searchType=image&num=4&safe=active&key=' + encodeURIComponent(k) + '&cx=' + encodeURIComponent(cx) + '&q=' + encodeURIComponent(topic))).json();
+  return (j.items || []).map(i => ({ src:(i.image && i.image.thumbnailLink) || i.link, full:i.link, credit:i.displayLink || 'Google Images', page:i.image && i.image.contextLink })).slice(0, 4);
+}
+function showLB(it){
+  const lb = $('lb'); lb.querySelector('img').src = it.full || it.src; lb.querySelector('span').textContent = it.credit || ''; lb.classList.add('open');
+}
+$('lb').onclick = () => $('lb').classList.remove('open');
+async function addPics(el, topic){
+  if (!el || !topic) return;
+  let items = [], from = 'Wikimedia Commons';
+  try { items = await wikiPics(topic); } catch(e){}
+  if (items.length < 2){
+    try { const g = await googlePics(topic); if (g.length){ items = g; from = 'Google Images'; } } catch(e){}
+  }
+  const box = document.createElement('div');
+  if (items.length){
+    const row = document.createElement('div'); row.className = 'pics';
+    items.forEach(it => { const im = document.createElement('img'); im.src = it.src; im.loading = 'lazy'; im.alt = topic; im.onclick = () => showLB(it); im.onerror = () => im.remove(); row.appendChild(im); });
+    box.appendChild(row);
+    const sc = document.createElement('span'); sc.className = 'pics-src'; sc.textContent = 'Pictures: ' + from + '. Tap to enlarge.'; box.appendChild(sc);
+  } else {
+    const a = document.createElement('a'); a.className = 'gimg'; a.target = '_blank'; a.rel = 'noopener';
+    a.href = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(topic); a.textContent = 'Open Google Images for ' + topic;
+    box.appendChild(a);
+  }
+  el.appendChild(box); log.scrollTop = log.scrollHeight;
+}
+
+
+/* ---------- Attachments, Simple mode, links ---------- */
+let attach = null;
+let simpleOn = false;
+function setSimple(v){ simpleOn = v; $('simple').classList.toggle('on', v); $('simple').textContent = 'Simple: ' + (v ? 'on' : 'off'); $('simple').setAttribute('aria-pressed', String(v)); }
+$('simple').onclick = () => setSimple(!simpleOn);
+function loadImage(file){
+  if (!file || !/^image\//.test(file.type)) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 1280 / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      const url = cv.toDataURL('image/jpeg', .82);
+      attach = { mime:'image/jpeg', data:url.split(',')[1], url };
+      $('att').querySelector('img').src = url; $('att').classList.add('on');
+      txt.focus();
+    };
+    im.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+function clearAttach(){ attach = null; $('att').classList.remove('on'); $('file').value = ''; }
+$('clip').onclick = () => $('file').click();
+$('file').onchange = e => loadImage(e.target.files[0]);
+$('attx').onclick = clearAttach;
+document.addEventListener('paste', e => { const f = Array.from((e.clipboardData && e.clipboardData.files) || []).find(x => /^image\//.test(x.type)); if (f){ e.preventDefault(); loadImage(f); } });
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.remove('drag'); }));
+document.addEventListener('drop', e => { const f = Array.from((e.dataTransfer && e.dataTransfer.files) || []).find(x => /^image\//.test(x.type)); if (f) loadImage(f); });
+const urlIn = q => (q.match(/https?:\/\/[^\s]+/g) || []).slice(0, 3);
+const SIMPLE_RULE = 'SIMPLE MODE: explain everything as if to a five-year-old child. Use very easy words, short sentences, and everyday comparisons such as toys, animals or food. No jargon. Stay accurate. Keep it to four short sentences.';
+
 /* ---------- Reminders (work while this page is open) ---------- */
 function parseReminder(q){
   const m = q.match(/remind me (?:in|after) (\d+|an?|one) (second|minute|hour)s?(?: to | about )?(.*)/i);
@@ -356,11 +571,16 @@ function setReminder(r){
 /* ---------- Input ---------- */
 function reply(m){ add('ai', m); say(m); }
 function submit(q){
-  q = q.trim(); if (!q) return;
+  q = q.trim();
+  if (!q && attach) q = 'Explain what this picture shows.';
+  if (!q) return;
   busy = true;
-  add('me', q); txt.value = '';
+  const sent = attach; curImg = sent; if (sent) clearAttach();
+  const mine = add('me', q); txt.value = '';
+  if (sent){ const im = document.createElement('img'); im.src = sent.url; im.style.cssText = 'display:block;max-width:100%;max-height:160px;border-radius:8px;margin-top:6px'; mine.appendChild(im); }
   const low = q.toLowerCase();
   let m;
+  if (sent || urlIn(q).length){ picTopicNow = ''; think(q); return; }
   if ((m = q.match(/^(?:please\s+)?remember(?: that)?\s+(.+)/i))){
     const a = facts(); a.push(m[1].replace(/[.!]+$/, '')); saveFacts(a);
     return reply('Very good, sir. I have noted that.');
@@ -382,18 +602,19 @@ function submit(q){
       .catch(e => { w.remove(); reply(e.message || 'I could not reach the weather service, sir.'); });
     return;
   }
+  picTopicNow = wantsPics(q) ? picTopic(q) : '';
   think(q);
 }
-$('send').onclick = () => submit(txt.value);
-txt.addEventListener('keydown', e => { if (e.key === 'Enter') submit(txt.value); });
+$('send').onclick = () => { unlockSpeech(); submit(txt.value); };
+txt.addEventListener('keydown', e => { if (e.key === 'Enter'){ unlockSpeech(); submit(txt.value); } });
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null;
+let rec = null, lastStop = 0;
 function listen(){
   if (!live || busy || rec || !SR) return;
   const r = rec = new SR();
   r.lang = 'en-US'; r.interimResults = true; r.continuous = false;
-  let heard = '', sent = false, timer = null;
+  let heard = '', sent = false, timer = null, heardAny = false;
   const send = () => { clearTimeout(timer); const q = heard.trim(); if (sent || !q || !live) return; sent = true; txt.value = ''; submit(q); };
   r.onresult = e => {
     heard = Array.from(e.results).map(x => x[0].transcript).join(' ');
@@ -401,36 +622,32 @@ function listen(){
     txt.value = heard;
     clearTimeout(timer);
     if (e.results[e.results.length - 1].isFinal) send();
-    else timer = setTimeout(() => { try { r.stop(); } catch(_){} }, 1000);
+    else timer = setTimeout(() => { try { r.stop(); } catch(_){} }, 750);
   };
   r.onerror = e => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){ stopLive(); add('sys', 'Microphone access was denied, sir. Allow it in Safari settings.'); }
     else if (e.error !== 'no-speech' && e.error !== 'aborted') add('sys', 'Microphone issue: ' + e.error);
   };
   r.onend = () => { clearTimeout(timer); if (rec === r) rec = null; send(); if (live && !busy) setTimeout(listen, 200); };
-  try { r.start(); } catch(_){ rec = null; if (live) setTimeout(listen, 500); }
+  const begin = (n) => { try { r.start(); } catch(_){ if (n < 6 && rec === r) setTimeout(() => begin(n + 1), 120); else { if (rec === r) rec = null; if (live) setTimeout(listen, 300); } } };
+  begin(0);
+  setTimeout(() => { if (rec === r && !heardAny) { /* engine did not start */ } }, 0);
 }
 function stopLive(){
   live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn);
   $('mic').classList.remove('on'); document.body.classList.remove('live', 'talk');
   $('vm').classList.remove('open'); meterOff();
-  const r = rec; rec = null;
+  const r = rec; rec = null; lastStop = Date.now();
   if (r){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} }
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 async function startLive(){
   unlockSpeech();
   if (!SR){ add('sys', 'Voice input is not available here, sir. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
-  try {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-      const st = await navigator.mediaDevices.getUserMedia({ audio:true });
-      st.getTracks().forEach(t => t.stop());
-    }
-  } catch(e){ add('sys', 'Microphone access was denied, sir. Allow it in Safari settings, then reload the page.'); return; }
   live = true; busy = false;
   $('mic').classList.add('on'); document.body.classList.add('live'); $('vm').classList.add('open');
-  meterOn();
-  setTimeout(listen, 350);
+  listen();
+  setTimeout(meterOn, 400);
 }
 function toggleLive(){ if (live){ stopLive(); } else startLive(); }
 $('mic').onclick = toggleLive;
@@ -478,14 +695,47 @@ function meterOff(){
   requestAnimationFrame(tick);
 })();
 
-setInterval(() => { if (live && !busy && !rec && !document.hidden){ meterOn(); listen(); } }, 1500);
+setInterval(() => { if (live && !busy && !rec && !document.hidden){ meterOn(); listen(); } }, 900);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && live && !busy && !rec) setTimeout(listen, 300); });
 
+async function checkKey(){
+  const k = store.get('gk', ''); if (!k) return;
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=' + encodeURIComponent(k));
+    if (r.ok) add('sys', 'Gemini key accepted.');
+    else { let m = ''; try { m = (await r.json()).error.message; } catch(_){} add('sys', 'Gemini rejected that key: ' + m.slice(0, 140)); }
+  } catch(e){ add('sys', 'I could not reach Google to check the key.'); }
+}
+
+async function diag(){
+  dlg.close();
+  const c = cfg();
+  if (!c.gk){ add('sys', 'Please paste your Gemini key first, sir.'); return; }
+  const base = 'https://generativelanguage.googleapis.com/v1beta/', k = encodeURIComponent(c.gk), m = encodeURIComponent(c.gm);
+  const post = (path, extra) => () => fetch(base + path + k, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({ contents:[{ role:'user', parts:[{ text:'Say hi.' }] }] }, extra)) });
+  const steps = [
+    ['1. Reach Google and check the key', () => fetch(base + 'models?pageSize=1&key=' + k)],
+    ['2. Plain answer (' + c.gm + ')', post('models/' + m + ':generateContent?key=', {})],
+    ['3. Answer with Google Search', post('models/' + m + ':generateContent?key=', { tools:[{ google_search:{} }] })],
+    ['4. Streaming answer', post('models/' + m + ':streamGenerateContent?alt=sse&key=', {})]
+  ];
+  const note = add('sys', 'Testing the connection…');
+  for (const [name, fn] of steps){
+    try {
+      const r = await fn();
+      if (r.ok){ await r.text(); add('sys', name + ': OK'); }
+      else { let t = ''; try { t = (await r.json()).error.message; } catch(_){} add('sys', name + ': Google replied with an error. ' + t.slice(0, 160)); }
+    } catch(e){ add('sys', name + ': blocked before reaching Google (' + (e.message || 'network') + ').'); }
+  }
+  note.remove(); add('sys', 'Test finished, sir.');
+}
+
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
+$('diag').onclick = diag;
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
@@ -660,7 +910,7 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
   if (!still) requestAnimationFrame(frame);
 })();
 
-add('ai', 'Good day, sir. Jarvis is online. Add your API key under Settings to begin.');
+add('ai', 'Good day, sir. Jarvis is online.');
 </script>
 </body>
 </html>
