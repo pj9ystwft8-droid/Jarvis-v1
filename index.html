@@ -84,6 +84,14 @@ body.live #txt{display:none}
 body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 .body .p{margin:0 0 18px}
 .body .p:last-child{margin-bottom:0}
+.body .h{font-weight:650;color:#fff;font-size:1.06em;margin:24px 0 10px;padding-left:10px;border-left:2px solid var(--arc);line-height:1.3}
+.body .h:first-child{margin-top:0}
+.body .q{margin:18px 0 0;padding:10px 12px;border-radius:8px;background:rgba(111,211,255,.07);border-left:2px solid var(--arc);line-height:1.5}
+.body .li.sub{margin:-8px 0 14px 26px;font-size:.95em;color:var(--dim)}
+.body .tw{overflow-x:auto;margin:0 0 18px;-webkit-overflow-scrolling:touch}
+.body table{border-collapse:collapse;font-size:14px;min-width:100%}
+.body th,.body td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+.body th{color:#fff;background:rgba(111,211,255,.09);font-weight:600}
 .body .li{display:flex;gap:12px;margin:0 0 20px;align-items:flex-start}
 .body .li:last-child{margin-bottom:0}
 .body .li .n{color:var(--arc);font-weight:600;flex:none;min-width:1.7em}
@@ -129,7 +137,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 </div>
 
 <dialog id="dlg">
-  <strong>Settings</strong> <span style="color:var(--dim);font-size:12px">build 15 Nov · e</span>
+  <strong>Settings</strong> <span style="color:var(--dim);font-size:12px">build 15 Nov · f</span>
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
@@ -212,21 +220,40 @@ function inline(parent, str){
 }
 function renderText(box, text, linksFn){
   box.textContent = '';
-  let pos = 0, linked = 0;
+  let pos = 0, linked = 0, tbl = null;
+  const flushT = () => {
+    if (!tbl) return;
+    const rows = tbl.filter(r => !r.every(c => /^:?-{2,}:?$/.test(c)));
+    const w = document.createElement('div'); w.className = 'tw';
+    const t = document.createElement('table');
+    rows.forEach((r, ri) => { const tr = document.createElement('tr'); r.forEach(c => { const td = document.createElement(ri === 0 ? 'th' : 'td'); inline(td, c); tr.appendChild(td); }); t.appendChild(tr); });
+    w.appendChild(t); box.appendChild(w); tbl = null;
+  };
   String(text).split('\n').forEach(raw => {
     const a = pos, b = pos + raw.length; pos = b + 1;
-    const line = raw.replace(/^\s*#+\s*/, '').trim(); if (!line) return;
-    const m = line.match(/^(\d+[.)]|[-\u2022*])\s+(.*)$/);
+    const trimmed = raw.trim();
+    if (/^\|.*\|?$/.test(trimmed) && trimmed.indexOf('|', 1) > 0){
+      (tbl = tbl || []).push(trimmed.replace(/^\||\|$/g, '').split('|').map(c => c.trim())); return;
+    }
+    flushT();
+    if (!trimmed || /^[-*_]{3,}$/.test(trimmed)) return;
+    const hm = trimmed.match(/^#{1,4}\s+(.*)$/);
+    if (hm){ const h = document.createElement('div'); h.className = 'h'; inline(h, hm[1].replace(/\*\*/g, '')); box.appendChild(h); return; }
+    const qm = trimmed.match(/^>\s?(.*)$/);
+    if (qm){ const q = document.createElement('div'); q.className = 'q'; inline(q, qm[1]); box.appendChild(q); return; }
+    const line = trimmed;
+    const m = line.match(/^(\d+[.)]|[-•*])\s+(.*)$/);
     if (m){
       const row = document.createElement('div'); row.className = 'li';
-      const n = document.createElement('span'); n.className = 'n'; n.textContent = /^\d/.test(m[1]) ? m[1] : '\u2022';
+      if (/^\s{2,}|^\t/.test(raw) && /^\s*[-•*]/.test(raw)) row.classList.add('sub');
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = /^\d/.test(m[1]) ? m[1] : '•';
       const t = document.createElement('span'); t.className = 't';
       let content = m[2];
-      if (!/\*\*/.test(content)){ const c = content.search(/:\s/); if (c > 0 && c < 70) content = '**' + content.slice(0, c + 1) + '**' + content.slice(c + 1); }
+      if (!/\*\*/.test(content) && !row.classList.contains('sub')){ const c = content.search(/:\s/); if (c > 0 && c < 70) content = '**' + content.slice(0, c + 1) + '**' + content.slice(c + 1); }
       inline(t, content);
       if (linksFn){
         const ls = linksFn(a, b);
-        ls.forEach(x => { const l = document.createElement('a'); l.className = 'il'; l.href = x.u; l.target = '_blank'; l.rel = 'noopener noreferrer'; l.textContent = '\u2197 ' + x.t; t.appendChild(l); });
+        ls.forEach(x => { const l = document.createElement('a'); l.className = 'il'; l.href = x.u; l.target = '_blank'; l.rel = 'noopener noreferrer'; l.textContent = '↗ ' + x.t; t.appendChild(l); });
         if (ls.length) linked++;
       }
       row.appendChild(n); row.appendChild(t); box.appendChild(row);
@@ -234,6 +261,7 @@ function renderText(box, text, linksFn){
       const p = document.createElement('div'); p.className = 'p'; inline(p, line); box.appendChild(p);
     }
   });
+  flushT();
   return linked;
 }
 function itemLinks(full){
@@ -331,7 +359,7 @@ function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) don
 function say(text){ const id = speechStart(); speechChunk(cleanSpeech(text), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: for any real question, answer thoroughly in the style of a top AI assistant. Begin with the direct answer in one or two sentences, then explain in two to four short paragraphs covering the key facts, the context, the reasons, and any useful details or next steps. Put a blank line between paragraphs. Wrap the few most important words or phrases of each paragraph in double asterisks, like **this**, so the key points stand out. Do not use hashes or other markdown. Keep greetings, thanks and very simple facts such as the time brief. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific physical place with a street location, such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. Never use the double square brackets for a website, web address, online store or company homepage. WEBSITES: write every website as [Short name](https://full-address), for example [Apple Germany](https://www.apple.com/de/), using the exact address from your search results. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. RESEARCH RULES: for any factual question, run at least three Google searches with different wording, including the exact names and terms the user used, and read the most relevant results before answering. Check important claims against at least two independent sources. If the user states something as a fact, says they are sure, or asks you to check again, treat that as a request to verify: search again from scratch with new wording, do not defend your earlier answer, and report what the sources show. If the sources support the user, say plainly that the user is right. If you still find nothing, say exactly what you searched for and what you found, and never claim something is false only because you did not find it. Never say you cannot access the internet. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: write like the best modern AI assistants, so the reader understands quickly. Always open with the direct answer in one or two plain sentences. For a simple question stop after one or two short paragraphs. For anything that explains, teaches, compares, plans or has several parts, build a clear structure: use short section headings written as a line starting with "## " (two to four words each); use bullet lines starting with "- " where each bullet begins with a **bold label** followed by a colon and a plain explanation; use numbered lines "1. " for steps or ranked items in order; put a short indented sub-bullet ("  - ") under a bullet only when it truly adds detail. For comparisons of three or more items across the same attributes, use a markdown table with a header row and a "|---|---|" separator row. Explain ideas in plain everyday words, define any technical term the first time it appears, and when a concept is abstract add one concrete example or a simple analogy. Keep paragraphs short, two or three sentences, with a blank line between them. Wrap the few most important words or phrases in double asterisks, like **this**. For any longer answer, finish with one line starting with "> " that gives the bottom line or recommended next step. Do not use other markdown such as code fences, italics or horizontal rules. Keep greetings, thanks and very simple facts such as the time brief and unstructured. CITING SOURCES: when your answer relies on web sources, name them inside the explanation, for example According to [Reuters](https://...), and where it helps the reader, quote the key words from the page in double quotation marks, keeping each quote under about 25 words, copied exactly from the text you actually found, followed by a plain-language explanation of what it means. Never invent or alter a quote; if you do not have the exact words, paraphrase and still name the source. Use quotes from different sources when they add evidence, and say plainly when sources disagree. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific physical place with a street location, such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. Never use the double square brackets for a website, web address, online store or company homepage. WEBSITES: write every website as [Short name](https://full-address), for example [Apple Germany](https://www.apple.com/de/), using the exact address from your search results. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. RESEARCH RULES: for any factual question, run at least three Google searches with different wording, including the exact names and terms the user used, and read the most relevant results before answering. Check important claims against at least two independent sources. If the user states something as a fact, says they are sure, or asks you to check again, treat that as a request to verify: search again from scratch with new wording, do not defend your earlier answer, and report what the sources show. If the sources support the user, say plainly that the user is right. If you still find nothing, say exactly what you searched for and what you found, and never claim something is false only because you did not find it. Never say you cannot access the internet. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
 
 
 /* ---------- Clock, memory ---------- */
@@ -390,7 +418,7 @@ function gBody(q, model, extra, useTools){
   const tools = [];
   if (useTools !== false) tools.push({ google_search:{} });
   if (urlIn(q).length) tools.push({ url_context:{} });
-  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, gOpts.max || (isList(q) ? 3000 : 1500), gOpts.level) };
+  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, gOpts.max || (isList(q) ? 3000 : 2200), gOpts.level) };
   if (tools.length) body.tools = tools;
   return JSON.stringify(body);
 }
@@ -519,7 +547,7 @@ async function referee(q, a, b){
   } catch(e){ return 'A'; }
 }
 
-function cleanSpeech(t){ return t.replace(/\[([^\]]+)\]\((?:https?:\/\/)[^)\s]+\)/g, '$1').replace(/https?:\/\/\S+/g, '').replace(/\[\[|\]\]/g, '').replace(/[*_#`]/g, ''); }
+function cleanSpeech(t){ if (/^\s*\|/.test(t)) return ''; t = t.replace(/^\s*(?:#{1,4}|>|[-\u2022])\s+/, ''); return t.replace(/\[([^\]]+)\]\((?:https?:\/\/)[^)\s]+\)/g, '$1').replace(/https?:\/\/\S+/g, '').replace(/\[\[|\]\]/g, '').replace(/[*_#`]/g, ''); }
 function renewText(){
   const now = new Date();
   const la = new Date(now.toLocaleString('en-US', { timeZone:'America/Los_Angeles' }));
