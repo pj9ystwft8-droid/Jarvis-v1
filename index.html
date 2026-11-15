@@ -133,7 +133,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15ad</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15ae</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -162,7 +162,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="te">Voice engine</label><select id="te"><option value="auto">Auto, best voice: on-device, then Gemini, then device</option><option value="fast">Auto, fastest start: Gemini, then on-device, then device</option><option value="kokoro">Natural on-device only (no limit)</option><option value="gemini">Gemini voice only (has a daily limit)</option><option value="device">Device: Daniel (instant, robotic)</option></select>
   <label for="sp">Speaking speed</label><select id="sp"><option value="1">Normal</option><option value="1.08">A little faster</option><option value="1.15">Faster</option></select>
   <label for="kv">On-device voice</label><select id="kv"><option value="bm_daniel">Daniel (British)</option><option value="bm_george">George (British)</option><option value="bm_lewis">Lewis (British)</option><option value="bm_fable">Fable (British)</option></select>
-  <div class="row"><button id="kdlb">Download natural voice</button> <button id="kturbo">Turbo voice (GPU, 330 MB)</button></div><div id="kst" style="color:var(--dim);font-size:12px;margin:2px 0 8px"></div>
+  <div class="row"><button id="kdlb">Download natural voice</button></div><div id="kst" style="color:var(--dim);font-size:12px;margin:2px 0 8px"></div>
   <label for="tv">Gemini voice</label><select id="tv"><option>Charon</option><option>Orus</option><option>Iapetus</option><option>Alnilam</option><option>Schedar</option><option>Sadaltager</option><option>Puck</option></select>
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
@@ -521,7 +521,7 @@ async function kLoad(onProg){
     };
     let tts = null;
     if (!window._kImport && window.Worker){
-      try { tts = await kWorkerLoad(prog, store.get('kgpu', '') === '1'); if (store.get('kgpu', '') === '1' && !tts.gpu) store.set('kgpu', 'fail'); } catch(e){ tts = null; }
+      try { tts = await kWorkerLoad(prog, false); } catch(e){ tts = null; }
     }
     if (!tts){
       let mod;
@@ -1748,7 +1748,6 @@ async function diag(){
 $('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
   { const tm = store.get('tts','auto'); $('te').value = tm === 'neural' ? 'auto' : tm; } $('kv').value = store.get('kv','bm_daniel'); $('sp').value = store.get('sp','1.08'); kStatus(); $('tv').value = store.get('ttsv','Charon'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
-$('kturbo').onclick = () => { dlg.close(); const d = add('sys', ''), t = document.createElement('div'); d.appendChild(t); if (!navigator.gpu){ t.textContent = 'This browser does not offer GPU access, sir, so the Turbo voice is unavailable.'; return; } kTurboInstall(t, null); };
 $('kdlb').onclick = () => { store.set('kv', $('kv').value); if (store.get('kdl', '') !== '1') store.set('kdl', ''); dlg.close(); kPrompt(true); };
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
@@ -1936,7 +1935,13 @@ add('ai', greeting() + ', sir. Jarvis is online.');
 setTimeout(() => {
   const m = ttsMode();
   if (m === 'device' || m === 'gemini') return;
-  if (store.get('kdl', '') === '1'){ kLoad().catch(() => { window._kFail = Date.now() + 600000; }); setTimeout(kTurboPrompt, 4000); }
+  if (store.get('kdl', '') === '1'){
+    /* crash guard: if the tab was killed while the voice was loading last time, back off instead of crash-looping */
+    const kb = store.get('kboot', '');
+    if (store.get('kgpu', '') === '1') store.set('kgpu', 'fail');
+    if (kb === 'c'){ store.set('kdl', 'no'); store.set('kboot', ''); add('sys', 'The natural voice crashed this page when loading, sir, so I have switched it off to keep things stable. The Gemini voice will be used. You can try it again from Settings.'); }
+    else { store.set('kboot', 'c'); kLoad().then(() => store.set('kboot', ''), () => { store.set('kboot', ''); window._kFail = Date.now() + 600000; }); }
+  }
   else if (store.get('kdl', '') === '' && store.get('gk', '')) kPrompt();
 }, 2500);
 </script>
