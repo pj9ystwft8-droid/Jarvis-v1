@@ -128,12 +128,11 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 </style>
 </head>
 <body>
-<audio id="tts" playsinline preload="auto"></audio>
 <canvas id="hud" aria-hidden="true"></canvas>
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15ag</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15ah</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -159,10 +158,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="rd">Reading aloud</label><select id="rd"><option value="short">Short: the first part only</option><option value="full">Full answer</option></select>
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="rl">Reply language</label><select id="rl"><option value="en">English (Daniel, default)</option></select>
-  <label for="te">Voice engine</label><select id="te"><option value="auto">Gemini voice first, then device voice when the quota runs out (default)</option><option value="gemini">Gemini voice only (has a daily limit)</option><option value="device">Device voice only: Daniel on iPhone, best British voice elsewhere (instant)</option></select>
   <label for="sp">Speaking speed</label><select id="sp"><option value="1">Normal</option><option value="1.08">A little faster</option><option value="1.15">Faster</option></select>
 
-  <label for="tv">Gemini voice</label><select id="tv"><option>Charon</option><option>Orus</option><option>Iapetus</option><option>Alnilam</option><option>Schedar</option><option>Sadaltager</option><option>Puck</option></select>
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
   <div class="row"><button id="loc">Allow location</button></div>
@@ -366,7 +363,6 @@ if (window.speechSynthesis) speechSynthesis.onvoiceschanged = fillVoices;
 let heardNow = false, live = false, busy = false, sayId = 0, pend = 0, fin = true, ttsEnd = 0, ttsUnlocked = false;
 let ttsConfirmed = false, lastUnlock = 0, wakeShown = false;
 function unlockSpeech(){
-  neuralUnlock();
   if (!window.speechSynthesis) return;
   try {
     speechSynthesis.resume();
@@ -387,160 +383,14 @@ function wakeHint(){
   d.appendChild(b);
 }
 function done(id){ if (id !== sayId) return; if (HL.T) HL.T.clear(); document.body.classList.remove('talk'); busy = false; if (live && !rec){ listen(); setTimeout(meterOn, 400); } }
-function speechStart(){ if (HL.T){ HL.T.clear(); HL.T = null; } sayId++; pend = 0; fin = false; ttsEnd = 0; neuralStop(); ngrp = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
+function speechStart(){ if (HL.T){ HL.T.clear(); HL.T = null; } sayId++; pend = 0; fin = false; ttsEnd = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
 /* ---------- Natural voice: Gemini text-to-speech played through an audio element ---------- */
-function pcmToWav(pcm, rate){
-  const n = pcm.length, b = new ArrayBuffer(44 + n), v = new DataView(b);
-  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n, true);
-  new Uint8Array(b, 44).set(pcm);
-  return new Blob([b], { type:'audio/wav' });
-}
-const b64u8 = t => { const bin = atob(t), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
 const spd = () => +store.get('sp', '1.08') || 1.08;
-try { if (store.get('ttsrev', '') !== '2'){ store.set('tts', 'auto'); store.set('ttsrev', '2'); ['kdl','kfill','kgpu','kboot','kv'].forEach(k => store.set(k, '')); if (window.caches) caches.keys().then(ks => ks.forEach(k => { if (/transformers|onnx|kokoro/i.test(k)) caches.delete(k); })).catch(() => {}); } } catch(_){}
-const ttsMode = () => { const v = store.get('tts', 'auto'); return v === 'gemini' || v === 'device' ? v : 'auto'; };
-const gReady = () => Date.now() > (window._ttsFail || 0) && !!store.get('gk', '');
-const useNeural = () => { const m = ttsMode(); return !!$('tts') && m !== 'device' && gReady(); };
-let nUnlocked = false, silentUrl = '';
-function neuralUnlock(){
-  if (nUnlocked || spBusy) return;
-  try {
-    const el = $('tts'); if (!el || !el.paused) return;
-    if (!silentUrl) silentUrl = URL.createObjectURL(pcmToWav(new Uint8Array(4800), 24000));
-    el.onended = null; el.onerror = null; el.src = silentUrl;
-    const pr = el.play(); if (pr && pr.then) pr.then(() => { nUnlocked = true; }).catch(() => {});
-  } catch(_){}
-}
-function ttsResult(bytes, mime){
-  const isWav = /wav/i.test(mime || '') || (bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70);
-  let pcm = bytes, rate = +(((mime || '').match(/rate=(\d+)/) || [])[1]) || 24000;
-  if (isWav){
-    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); rate = dv.getUint32(24, true) || 24000; pcm = null;
-    for (let off = 12; off + 8 <= bytes.length;){
-      const id = String.fromCharCode(bytes[off], bytes[off + 1], bytes[off + 2], bytes[off + 3]), sz = Math.min(dv.getUint32(off + 4, true), bytes.length - off - 8);
-      if (id === 'data'){ pcm = bytes.subarray(off + 8, off + 8 + sz); break; }
-      off += 8 + sz + (sz & 1);
-    }
-    if (!pcm) pcm = bytes.subarray(44);
-  }
-  const n = pcm.length >> 1, i16 = new Int16Array(pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + n * 2));
-  let a = 0, b = n - 1; const th = 400;
-  while (a < n && Math.abs(i16[a]) < th) a++;
-  while (b > a && Math.abs(i16[b]) < th) b--;
-  return { url: URL.createObjectURL(isWav ? new Blob([bytes], { type:'audio/wav' }) : pcmToWav(bytes, rate)), lead: a / rate, speech: Math.max(.25, (b - a) / rate), dur: n / rate };
-}
-function gRes(b, m){ const r = ttsResult(b, m); r.rate = 1 + (spd() - 1) * .75; return r; }
-function findAudio(o){
-  if (!o || typeof o !== 'object') return null;
-  if (o.type === 'audio' && typeof o.data === 'string') return o;
-  for (const v of Object.values(o)){ const f = findAudio(v); if (f) return f; }
-  return null;
-}
-async function geminiTTS(text){
-  const c = cfg(), L = curLang(), voice = store.get('ttsv', 'Charon');
-  const style = 'in a refined British English accent, Received Pronunciation, like an English butler: calm, warm, natural and unhurried';
-  const sys = L ? 'Speak naturally, calmly and warmly. Read aloud only the text you are given and never read these instructions.' : 'You are the voice of Jarvis, a refined British English butler. Always speak with a clear British English accent, calm, warm and natural, at a steady, unhurried pace. Read aloud only the text you are given and never read these instructions.';
-  let last = null;
-  for (const m of [store.get('ttsm', '') || 'gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']){
-    if (!window._ttsNoInt){
-      try {
-        const ann = L ? [] : [{ type:'speech_metadata', style }];
-        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': c.gk }, body: JSON.stringify({ model: m, input:[{ type:'user_input', content:[{ type:'text', text, annotations: ann }] }], response_format:{ type:'audio' }, generation_config:{ speech_config:[{ voice }] } }) });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const au = findAudio(await r.json());
-        if (!au) throw new Error('no audio');
-        return gRes(b64u8(au.data), au.mime_type || au.mimeType || 'audio/wav');
-      } catch(e){ window._ttsNoInt = true; }
-    }
-    try {
-      const mk = withSys => { const b = { contents:[{ role:'user', parts:[{ text }] }], generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: voice } } } } }; if (withSys) b.systemInstruction = { parts:[{ text: sys }] }; return JSON.stringify(b); };
-      const post = withSys => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: mk(withSys) });
-      let r = await post(!window._ttsNoSys);
-      if (!r.ok && r.status === 400 && !window._ttsNoSys){ window._ttsNoSys = true; r = await post(false); }
-      if (!r.ok){ let t = ''; try { t = (await r.json()).error.message; } catch(_){} throw new Error(t || ('HTTP ' + r.status)); }
-      const j = await r.json();
-      const part = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).find(x => x.inlineData && /audio/i.test(x.inlineData.mimeType || ''));
-      if (!part) throw new Error('no audio returned');
-      return gRes(b64u8(part.inlineData.data), part.inlineData.mimeType || '');
-    } catch(e){ last = e; if (/API key/i.test(e.message || '')) break; }
-  }
-  throw last;
-}
-async function fetchTTS(text){
-  if (!gReady()) throw new Error('no natural voice available');
-  try { return await geminiTTS(text); } catch(err){ window._ttsFail = Date.now() + 300000; throw err; }
-}
-let nextG = null, ngrp = 0, nTimer = 0;
-function neuralStop(){
-  clearInterval(nTimer); nextG = null;
-  try { const a = $('tts'); if (a){ a.onended = null; a.onerror = null; a.pause(); } } catch(_){}
-}
-function takeGroup(first){
-  let it = spq.shift();
-  while (it && it.id !== sayId) it = spq.shift();
-  if (!it) return null;
-    if (first && it.text.length > 30){
-    const lim = 56, mn = 18;
-    let i = it.text.lastIndexOf(', ', lim); if (i < mn) i = it.text.lastIndexOf(' ', lim); if (i < mn) i = it.text.indexOf(' ', mn);
-    if (i >= mn && i < it.text.length - 6){
-      const head = { u: it.u, text: it.text.slice(0, i + 1).trim(), id: it.id, finish: () => {}, hl: it.hl, off: 0, orig: it };
-      const tail = { u: it.u, text: it.text.slice(i + 1).trim(), id: it.id, finish: it.finish, hl: it.hl, off: i + 1, orig: it };
-      if (tail.text){ spq.unshift(tail); it = head; }
-    }
-  }
-  const cap = 600;
-  const grp = [it]; let len = it.text.length;
-  if (!first) while (spq.length && spq[0].id === sayId && len + spq[0].text.length <= cap){ const g = spq.shift(); grp.push(g); len += g.text.length + 1; }
-  const text = grp.map(g => g.text).join(' ');
-  const p = fetchTTS(text); p.catch(() => {});
-  return { grp, text, p };
-}
-async function npump(){
-  if (spBusy) return;
-  let G = nextG; nextG = null;
-  if (G && G.grp[0].id !== sayId) G = null;
-  if (!G) G = takeGroup(ngrp === 0);
-  if (!G) return;
-  spBusy = true; ngrp++;
-  const token = {}; curIt = token; let ended = false; const grp = G.grp;
-  const fin = () => { if (ended) return; ended = true; clearInterval(nTimer); if (curIt === token){ spBusy = false; curIt = null; } grp.forEach(g => { if (g.hl) g.hl.end(); g.finish(); }); if (curIt === null) spPump(); };
-  const fail = e => {
-    if (ended) return; ended = true; clearInterval(nTimer);
-    window._ttsFail = Date.now() + 300000;
-    if (!window._ttsWarned){ window._ttsWarned = true; add('sys', 'The natural voice was unavailable (' + String((e && e.message) || e).slice(0, 80) + '), sir. Using the device voice for a few minutes.'); }
-    const back = [...new Set(grp.concat(nextG ? nextG.grp : []).map(g => g.orig || g))]; nextG = null;
-    spq.unshift(...back.filter(g => g.id === sayId));
-    if (curIt === token){ spBusy = false; curIt = null; }
-    spPump();
-  };
-  try {
-    const el = $('tts');
-    const au = await G.p;
-    if (grp[0].id !== sayId){ ended = true; if (curIt === token){ spBusy = false; curIt = null; } return; }
-    el.onended = fin; el.onerror = () => fail(new Error('audio error'));
-    el.src = au.url; el.defaultPlaybackRate = au.rate || 1; el.playbackRate = au.rate || 1;
-    document.body.classList.add('talk');
-    await el.play(); el.playbackRate = au.rate || 1;
-    const offs = []; let tot = 0; grp.forEach(g => { offs.push(tot); tot += g.text.length + 1; });
-    const joined = grp.map(g => g.text).join(' '), cw = []; let acc = 0;
-    for (const ch of joined){ acc += 1 + (',;:'.indexOf(ch) >= 0 ? 5 : '.!?'.indexOf(ch) >= 0 ? 9 : 0); cw.push(acc); }
-    nTimer = setInterval(() => {
-      const t = el.currentTime - (au.lead || 0) - .05; if (t < 0) return;
-      const target = Math.min(1, t / (au.speech || el.duration || 1)) * acc;
-      let lo = 0, hi = cw.length - 1; while (lo < hi){ const mid = (lo + hi) >> 1; if (cw[mid] >= target) hi = mid; else lo = mid + 1; }
-      const pos = lo; let k = 0; for (let i = 0; i < offs.length; i++) if (offs[i] <= pos) k = i;
-      if (grp[k].hl) grp[k].hl.boundary(Math.max(0, pos - offs[k]) + (grp[k].off || 0));
-    }, 50);
-    if (!nextG) nextG = takeGroup(false);
-  } catch(e){ fail(e); }
-}
+try { if (store.get('ttsrev', '') !== '3'){ store.set('ttsrev', '3'); ['tts','ttsv','kdl','kfill','kgpu','kboot','kv'].forEach(k => store.set(k, '')); if (window.caches) caches.keys().then(ks => ks.forEach(k => { if (/transformers|onnx|kokoro/i.test(k)) caches.delete(k); })).catch(() => {}); } } catch(_){}
 const HL = { T:null };
 const spq = []; let spBusy = false, curIt = null;
 function spPump(){
   if (spBusy) return;
-  if (useNeural()){ npump(); return; }
   let it = spq.shift();
   while (it && it.id !== sayId) it = spq.shift();
   if (!it) return;
@@ -1454,7 +1304,7 @@ function stopLive(){
   const r = rec; rec = null; lastStop = Date.now();
   if (r && r.speaking && r.speaking()){ r.late = true; try { r.stop(); } catch(e){} }
   else { micKill(); if (r){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} } }
-  neuralStop(); if (window.speechSynthesis) speechSynthesis.cancel();
+  if (window.speechSynthesis) speechSynthesis.cancel();
 }
 async function startLive(){
   unlockSpeech();
@@ -1575,7 +1425,7 @@ async function diag(){
 
 /* ---------- Settings ---------- */
 $('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
-  { const tm = store.get('tts','auto'); $('te').value = tm === 'neural' ? 'auto' : tm; } $('sp').value = store.get('sp','1.08'); $('tv').value = store.get('ttsv','Charon'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+  $('sp').value = store.get('sp','1.08'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
@@ -1584,7 +1434,7 @@ function greeting(){
   return h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('tts', $('te').value); store.set('sp', $('sp').value); store.set('ttsv', $('tv').value); window._ttsFail = 0; window._ttsWarned = false; if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
