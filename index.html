@@ -131,7 +131,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15v</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15w</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -406,12 +406,14 @@ function neuralUnlock(){
 }
 async function fetchTTS(text){
   const c = cfg(), L = curLang();
-  const lead = L ? 'Say this naturally and calmly:\n\n' : 'Say the following in a refined British English male voice, calm, warm and natural, at a steady, unhurried pace:\n\n';
-  const body = JSON.stringify({ contents:[{ role:'user', parts:[{ text: lead + text }] }], generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: store.get('ttsv', 'Charon') } } } } });
+  const sys = L ? 'Speak naturally, calmly and warmly. Read aloud only the text you are given and never read these instructions.' : 'You are the voice of Jarvis, a refined British English butler. Speak in a calm, warm, natural British voice at a steady, unhurried pace. Read aloud only the text you are given and never read these instructions.';
+  const mk = withSys => { const b = { contents:[{ role:'user', parts:[{ text }] }], generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: store.get('ttsv', 'Charon') } } } } }; if (withSys) b.systemInstruction = { parts:[{ text: sys }] }; return JSON.stringify(b); };
   let last = null;
-  for (const m of [store.get('ttsm', '') || 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts']){
+  for (const m of [store.get('ttsm', '') || 'gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']){
     try {
-      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body });
+      const post = withSys => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: mk(withSys) });
+      let r = await post(!window._ttsNoSys);
+      if (!r.ok && r.status === 400 && !window._ttsNoSys){ window._ttsNoSys = true; r = await post(false); }
       if (!r.ok){ let t = ''; try { t = (await r.json()).error.message; } catch(_){} throw new Error(t || ('HTTP ' + r.status)); }
       const j = await r.json();
       const part = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).find(x => x.inlineData && /audio/i.test(x.inlineData.mimeType || ''));
@@ -433,6 +435,14 @@ function takeGroup(first){
   let it = spq.shift();
   while (it && it.id !== sayId) it = spq.shift();
   if (!it) return null;
+  if (first && it.text.length > 60){
+    let i = it.text.lastIndexOf(', ', 56); if (i < 18) i = it.text.lastIndexOf(' ', 56);
+    if (i >= 18){
+      const head = { u: it.u, text: it.text.slice(0, i + 1).trim(), id: it.id, finish: () => {}, hl: it.hl, off: 0, orig: it };
+      const tail = { u: it.u, text: it.text.slice(i + 1).trim(), id: it.id, finish: it.finish, hl: it.hl, off: i + 1, orig: it };
+      if (tail.text){ spq.unshift(tail); it = head; }
+    }
+  }
   const grp = [it]; let len = it.text.length;
   if (!first) while (spq.length && spq[0].id === sayId && len + spq[0].text.length <= 600){ const g = spq.shift(); grp.push(g); len += g.text.length + 1; }
   const text = grp.map(g => g.text).join(' ');
@@ -452,7 +462,7 @@ async function npump(){
     if (ended) return; ended = true; clearInterval(nTimer);
     window._ttsFail = Date.now() + 300000;
     if (!window._ttsWarned){ window._ttsWarned = true; add('sys', 'The natural voice was unavailable (' + String((e && e.message) || e).slice(0, 80) + '), sir. Using the device voice for a few minutes.'); }
-    const back = grp.concat(nextG ? nextG.grp : []); nextG = null;
+    const back = [...new Set(grp.concat(nextG ? nextG.grp : []).map(g => g.orig || g))]; nextG = null;
     spq.unshift(...back.filter(g => g.id === sayId));
     if (curIt === token){ spBusy = false; curIt = null; }
     spPump();
@@ -470,7 +480,7 @@ async function npump(){
       const d = el.duration; if (!d || !isFinite(d)) return;
       const pos = Math.min(tot - 1, el.currentTime / d * tot);
       let k = 0; for (let i = 0; i < offs.length; i++) if (offs[i] <= pos) k = i;
-      if (grp[k].hl) grp[k].hl.boundary(Math.max(0, pos - offs[k]));
+      if (grp[k].hl) grp[k].hl.boundary(Math.max(0, pos - offs[k]) + (grp[k].off || 0));
     }, 60);
     if (!nextG) nextG = takeGroup(false);
   } catch(e){ fail(e); }
