@@ -128,6 +128,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="vc">Voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
+  <div class="row"><button id="loc">Allow location</button></div>
   <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
   <div class="row"><button id="cancel">Close</button><button id="save" class="go">Save</button></div>
 </dialog>
@@ -372,6 +373,48 @@ async function askGemini(q, extra){
 }
 const wantsLinks = q => /\b(links?|sources?|websites?|urls?|references?|cite|citations?|where did you (?:get|find|read))\b/i.test(q);
 const isPlaceQ = q => /\b(near me|nearby|restaurants?|cafes?|coffee shops?|hotels?|where is|directions?|how (?:do i|to) get to|route to|open now|bars?|malls?|hospitals?|pharmacy|gas station|places to)\b/i.test(q);
+
+const isNearQ = q => /\b(near me|nearby|nearest|closest|around here|close to me|where (?:can|do) i (?:buy|find|get))\b/i.test(q);
+const nearIntent = q => isNearQ(q) || /\b(restaurants?|cafes?|coffee shops?|hotels?|bars?|malls?|hospitals?|pharmacy|pharmacies|gas station|supermarkets?|convenience stores?|stores?|shops?|atms?|banks?)\b/i.test(q) && /\b(where|find|buy|get|go|nearest|closest|near|nearby)\b/i.test(q);
+const placeSubject = q => { const t = q.replace(/\b(where|can|could|do|does|i|find|buy|get|go|is|are|the|a|an|nearest|closest|near|nearby|me|to|my|location|please|jarvis|show|give|any|around|here|close|open|now|how|directions?|route|of|for|there|in|at|some|best|good)\b/ig, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim(); return t || 'store'; };
+const siteSubject = q => {
+  const strip = x => x.replace(/\b(please|can you|could you|jarvis|give me|send me|show me|tell me|tell|about|find|get|the|a|an|me|link|links|url|urls|website|websites|web site|web page|webpage|site|homepage|official|of|for|to|what is|what's|where is|where can i find|i need|i want|address|how|do|does|i|you)\b/ig, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim();
+  let t = strip(q);
+  if (!t){ const prev = history.slice().reverse().find(m => m.role === 'user'); t = prev ? strip(prev.text).slice(0, 60) : ''; }
+  return t;
+};
+function kmBetween(la1, lo1, la2, lo2){
+  const r = x => x * Math.PI / 180, dl = r(la2 - la1), dn = r(lo2 - lo1);
+  const h = Math.sin(dl / 2) ** 2 + Math.cos(r(la1)) * Math.cos(r(la2)) * Math.sin(dn / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+async function nearestPlaces(subject, pos){
+  for (const d of [.05, .25]){
+    const vb = [pos.lon - d, pos.lat + d, pos.lon + d, pos.lat - d].join(',');
+    const j = await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&accept-language=en&limit=15&bounded=1&viewbox=' + vb + '&q=' + encodeURIComponent(subject))).json();
+    if (j && j.length) return j.map(x => ({ name: x.name || (x.display_name || '').split(',')[0], addr: (x.display_name || '').split(',').slice(1, 3).join(',').trim(), lat:+x.lat, lon:+x.lon, km: kmBetween(pos.lat, pos.lon, +x.lat, +x.lon) })).sort((a, b) => a.km - b.km).slice(0, 3);
+  }
+  return [];
+}
+async function addNearest(el, q){
+  const subject = placeSubject(q);
+  const box = document.createElement('div'); box.className = 'srcs';
+  const h = document.createElement('div'); h.className = 'h'; box.appendChild(h);
+  const link = (label, url) => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label; box.appendChild(a); };
+  let pos = null;
+  try { pos = await getPos(); } catch(e){ pos = null; }
+  if (pos){
+    h.textContent = 'Nearest to you';
+    let list = []; try { list = await nearestPlaces(subject, pos); } catch(e){}
+    list.forEach(pl => link('\u{1F4CD} ' + pl.name + ' \u00B7 ' + (pl.km < 1 ? Math.round(pl.km * 1000) + ' m' : pl.km.toFixed(1) + ' km') + (pl.addr ? ' \u00B7 ' + pl.addr : ''), 'https://www.google.com/maps/dir/?api=1&destination=' + pl.lat + ',' + pl.lon));
+    link('\u{1F4CD} See all nearby ' + subject + ' on Google Maps', 'https://www.google.com/maps/search/' + encodeURIComponent(subject) + '/@' + pos.lat + ',' + pos.lon + ',15z');
+  } else {
+    h.textContent = 'Find it on the map';
+    link('\u{1F4CD} Open ' + subject + ' in Google Maps', 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(subject));
+    const note = document.createElement('div'); note.style.cssText = 'color:var(--dim);font-size:12px;padding-top:4px'; note.textContent = 'Allow location in Settings so I can find the nearest one.'; box.appendChild(note);
+  }
+  el.appendChild(box); followAnswer(el);
+}
 function status(label){ const d = document.createElement('div'); d.className = 'status'; const i = document.createElement('i'); const t = document.createElement('span'); t.textContent = label; d.appendChild(i); d.appendChild(t); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
 let searchedFlag = false, siteList = [], gChunks = [], gSupports = [];
 const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
@@ -472,6 +515,11 @@ function listSpeech(t){
   return intro + ' ' + top + (items.length > 3 ? '. The full list of ' + items.length + ' is on your screen, sir.' : '.');
 }
 async function thinkStream(q, extra){
+  if (nearIntent(q)){
+    try { getPos().catch(() => {}); } catch(e){}
+    const cp = store.get('pos', '');
+    if (cp){ try { const o = JSON.parse(cp); extra = (extra ? extra + '\n' : '') + 'The user is currently at latitude ' + o.lat.toFixed(4) + ', longitude ' + o.lon.toFixed(4) + '. For places, recommend the ones nearest to this location and say roughly how far each is.'; } catch(e){} }
+  }
   const c = cfg(), wait = status(needsWeb(q) ? 'Searching the web…' : 'Thinking…'), id = speechStart();
   let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false;
   const listMode = isList(q), readAll = store.get('read', 'short') === 'full', LIM = 420;
@@ -508,20 +556,28 @@ async function thinkStream(q, extra){
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
     let perItem = 0;
     if (searchedFlag && el && body && listMode && gSupports.length) perItem = renderText(body, full, itemLinks(full));
-    if (el && !perItem && full.length > 120 && (siteList.length || needsWeb(q) || wantsLinks(q))){
+    const siteQ = wantsLinks(q) && !isList(q);
+    if (el && !perItem && (full.length > 120 || siteQ) && (siteList.length || needsWeb(q) || siteQ)){
       const n = document.createElement('div'); n.className = 'srcs';
       const h = document.createElement('div'); h.className = 'h';
       const add1 = (label, url) => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label; n.appendChild(a); };
-      if (siteList.length){ h.textContent = 'Sources'; n.appendChild(h); siteList.slice(0, 6).forEach(x => add1(x.t, x.u)); }
-      else {
-        h.textContent = toolsOk ? 'Find it online' : 'Web search was unavailable for this answer'; n.appendChild(h);
+      h.textContent = siteQ ? 'Website links' : (siteList.length ? 'Sources' : (toolsOk ? 'Find it online' : 'Web search was unavailable for this answer')); n.appendChild(h);
+      const subj = siteQ ? siteSubject(q) : '';
+      if (subj){
+        const qq = encodeURIComponent(subj + ' official website');
+        add1('Open the official website of ' + subj, 'https://www.google.com/search?btnI=1&q=' + qq);
+        add1('See search results for ' + subj, 'https://www.google.com/search?q=' + qq);
+      }
+      if (siteList.length) siteList.slice(0, 6).forEach(x => add1(x.t, x.u));
+      else if (!subj){
         const qq = encodeURIComponent(q.slice(0, 120));
         add1('Search Google for this', 'https://www.google.com/search?q=' + qq);
         add1('Look it up on Wikipedia', 'https://en.wikipedia.org/wiki/Special:Search?search=' + qq);
       }
       el.appendChild(n);
     }
-    if (el && isPlaceQ(q) && !/\[\[/.test(full)){
+    if (el && nearIntent(q)) addNearest(el, q);
+    else if (el && isPlaceQ(q) && !/\[\[/.test(full)){
       const g = document.createElement('a'); g.className = 'gimg'; g.target = '_blank'; g.rel = 'noopener noreferrer';
       g.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(picTopic(q)); g.textContent = '\u{1F4CD} Open in Google Maps'; el.appendChild(g);
     }
@@ -590,7 +646,7 @@ function getPos(){
     if (!navigator.geolocation){ c ? ok(JSON.parse(c)) : no(new Error('Location is unavailable.')); return; }
     navigator.geolocation.getCurrentPosition(
       p => { const o = { lat:p.coords.latitude, lon:p.coords.longitude }; store.set('pos', JSON.stringify(o)); ok(o); },
-      () => { c ? ok(JSON.parse(c)) : no(new Error('I need location access to check the weather, sir. Allow it for Safari, or ask me with a city name.')); },
+      () => { c ? ok(JSON.parse(c)) : no(new Error('I need location access, sir. Please allow it for Safari in Settings, or tell me the city.')); },
       { timeout:8000, maximumAge:600000 });
   });
 }
@@ -898,6 +954,7 @@ async function diag(){
 $('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
+$('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
 $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
