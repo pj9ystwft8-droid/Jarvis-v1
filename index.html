@@ -83,6 +83,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 .body .li .n{color:var(--arc);font-weight:600;flex:none;min-width:1.7em}
 .body .li .t{flex:1;min-width:0}
 .body .li b{font-weight:600;color:#fff}
+.body .li .t .il{display:block;margin-top:6px;font-size:13px;color:var(--arc);text-decoration:underline;text-underline-offset:3px;word-break:break-word;padding:3px 0}
 .srcs{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
 .srcs .h{color:var(--dim);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
 .srcs a{display:block;color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:6px 0;word-break:break-word}
@@ -131,24 +132,50 @@ const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (
 let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
 function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
 
-function renderText(box, text){
+function renderText(box, text, linksFn){
   box.textContent = '';
-  const clean = String(text).replace(/\*\*/g, '').replace(/^#+\s*/gm, '');
-  clean.split('\n').forEach(raw => {
-    const line = raw.trim(); if (!line) return;
+  let pos = 0, linked = 0;
+  String(text).split('\n').forEach(raw => {
+    const a = pos, b = pos + raw.length; pos = b + 1;
+    const line = raw.replace(/\*\*/g, '').replace(/^\s*#+\s*/, '').trim(); if (!line) return;
     const m = line.match(/^(\d+[.)]|[-\u2022*])\s+(.*)$/);
     if (m){
       const row = document.createElement('div'); row.className = 'li';
       const n = document.createElement('span'); n.className = 'n'; n.textContent = /^\d/.test(m[1]) ? m[1] : '\u2022';
       const t = document.createElement('span'); t.className = 't';
       const c = m[2].search(/:\s/);
-      if (c > 0 && c < 70){ const b = document.createElement('b'); b.textContent = m[2].slice(0, c + 1); t.appendChild(b); t.appendChild(document.createTextNode(' ' + m[2].slice(c + 2))); }
+      if (c > 0 && c < 70){ const bd = document.createElement('b'); bd.textContent = m[2].slice(0, c + 1); t.appendChild(bd); t.appendChild(document.createTextNode(' ' + m[2].slice(c + 2))); }
       else t.textContent = m[2];
+      if (linksFn){
+        const ls = linksFn(a, b);
+        ls.forEach(x => { const l = document.createElement('a'); l.className = 'il'; l.href = x.u; l.target = '_blank'; l.rel = 'noopener noreferrer'; l.textContent = '\u2197 ' + x.t; t.appendChild(l); });
+        if (ls.length) linked++;
+      }
       row.appendChild(n); row.appendChild(t); box.appendChild(row);
     } else {
       const p = document.createElement('div'); p.className = 'p'; p.textContent = line; box.appendChild(p);
     }
   });
+  return linked;
+}
+function itemLinks(full){
+  const sup = gSupports.map(sp => {
+    const seg = sp.segment || {};
+    let st = seg.text ? full.indexOf(seg.text) : -1;
+    if (st < 0 && typeof seg.startIndex === 'number') st = seg.startIndex;
+    const len = seg.text ? seg.text.length : ((seg.endIndex || 0) - (seg.startIndex || 0));
+    return { st, en: st + len, ids: sp.groundingChunkIndices || [] };
+  }).filter(x => x.st >= 0 && x.en > x.st);
+  return (a, b) => {
+    const out = [];
+    sup.forEach(x => {
+      if (x.st < b && x.en > a) x.ids.forEach(i => {
+        const w = gChunks[i] && gChunks[i].web;
+        if (w && w.uri && !out.some(o => o.u === w.uri)) out.push({ t: w.title || w.uri, u: w.uri });
+      });
+    });
+    return out.slice(0, 2);
+  };
 }
 function add(cls, text, source){
   const d = document.createElement('div');
@@ -289,7 +316,7 @@ async function askGemini(q, extra){
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
   return j.candidates[0].content.parts.map(p => p.text || '').join('');
 }
-let searchedFlag = false, siteList = [];
+let searchedFlag = false, siteList = [], gChunks = [], gSupports = [];
 const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
 async function streamGemini(q, cb, model, extra, useTools, plain){
   const c = cfg();
@@ -302,13 +329,14 @@ async function streamGemini(q, cb, model, extra, useTools, plain){
     const txt = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join('');
     const gm = cand && cand.groundingMetadata;
     if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
+    if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
     if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
     if (txt) cb(txt);
     return txt;
   }
   const rd = r.body.getReader(), dec = new TextDecoder();
   let buf = '', all = '';
-  searchedFlag = false; siteList = [];
+  searchedFlag = false; siteList = []; gChunks = []; gSupports = [];
   for (;;){
     const { done, value } = await rd.read(); if (done) break;
     buf += dec.decode(value, { stream:true });
@@ -321,7 +349,8 @@ async function streamGemini(q, cb, model, extra, useTools, plain){
         const t = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('');
         const gm = j.candidates && j.candidates[0] && j.candidates[0].groundingMetadata;
         if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
-        if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
+        if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
+    if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
         if (t){ all += t; cb(all); }
       } catch(_){}
     }
@@ -405,7 +434,7 @@ async function thinkStream(q, extra){
     const tries = [[c.gm, true, false], [c.gm, false, false], [c.gm, false, true], [bk, false, true]];
     let lastErr = null;
     for (const [mdl, tl, pl] of tries){
-      try { searchedFlag = false; siteList = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; break; }
+      try { searchedFlag = false; siteList = []; gChunks = []; gSupports = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; break; }
       catch (err){ lastErr = err; if (full || /API key|API_KEY/i.test(err.message || '')) break; }
     }
     if (lastErr) throw lastErr;
@@ -413,7 +442,9 @@ async function thinkStream(q, extra){
     if (listMode) speechChunk(cleanSpeech(listSpeech(full)), id); else flush(true);
     speechEnd(id);
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
-    if (searchedFlag && el){
+    let perItem = 0;
+    if (searchedFlag && el && body && gSupports.length) perItem = renderText(body, full, itemLinks(full));
+    if (searchedFlag && el && !perItem){
       let n;
       if (siteList.length){
         n = document.createElement('div'); n.className = 'srcs';
