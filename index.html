@@ -116,6 +116,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 @media (prefers-reduced-motion:reduce){.status i,.status i::before,.status span{animation:none}.status span{-webkit-text-fill-color:currentColor;color:var(--dim)}}
 .body b{font-weight:650;color:#fff}
 .body a.lnk{color:var(--arc);text-decoration:underline;text-underline-offset:3px;word-break:break-all}
+.body .maddr{color:var(--dim);font-size:.9em}
+.body .maddr.unv{color:#ffb454}
 .body a.map{color:var(--arc);text-decoration:underline;text-underline-offset:3px;font-weight:600}
 .srcs .qs{color:var(--dim);font-size:12px;line-height:1.5;padding:2px 0 8px}
 .srcs .tg{background:none;border:1px solid var(--line);color:var(--arc);border-radius:14px;padding:6px 12px;font-size:13px}
@@ -127,7 +129,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15o</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15p</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -186,18 +188,33 @@ function mapHref(q){
   const g = geoCache.get(q);
   return g ? 'https://www.google.com/maps/search/' + encodeURIComponent(q) + '/@' + g.lat + ',' + g.lon + ',17z' : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
 }
+function decorateMap(a){
+  const q = a.dataset.q, g = geoCache.get(q);
+  if (g === undefined) return;
+  a.href = mapHref(q);
+  if (a.nextSibling && a.nextSibling.className && String(a.nextSibling.className).indexOf('maddr') === 0) return;
+  const sp = document.createElement('span'); sp.className = 'maddr';
+  if (g){ if (!g.addr) return; sp.textContent = ' — ' + g.addr; }
+  else { sp.className = 'maddr unv'; sp.textContent = ' (not confirmed, please check)'; }
+  if (a.parentNode) a.parentNode.insertBefore(sp, a.nextSibling);
+}
 async function geoPump(){
   if (geoBusy) return; geoBusy = true;
   while (geoQ.length){
     const q = geoQ.shift();
     try {
-      const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=3&accept-language=en&q=' + encodeURIComponent(q));
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&accept-language=en&q=' + encodeURIComponent(q));
       const j = r.ok ? await r.json() : [];
-      const first = normG(q.split(',')[0]);
-      const hit = (j || []).find(x => first.length > 2 && normG((x.name || '') + (x.display_name || '')).includes(first));
-      geoCache.set(q, hit ? { lat: (+hit.lat).toFixed(6), lon: (+hit.lon).toFixed(6) } : false);
-      if (hit) document.querySelectorAll('a.map').forEach(a => { if (a.dataset.q === q) a.href = mapHref(q); });
-    } catch(_){ geoCache.set(q, false); }
+      const parts = q.split(',').map(x => x.trim()), first = normG(parts[0]), city = parts.length > 1 ? normG(parts[parts.length - 1]) : '';
+      const hit = (j || []).find(x => { const all = normG((x.name || '') + (x.display_name || '')); return first.length > 2 && all.includes(first) && (!city || city.length < 3 || all.includes(city)); });
+      let g = false;
+      if (hit){
+        const ad = hit.address || {}, street = [ad.road, ad.house_number].filter(Boolean).join(' '), town = ad.city || ad.town || ad.village || ad.suburb || '';
+        g = { lat: (+hit.lat).toFixed(6), lon: (+hit.lon).toFixed(6), addr: [street, [ad.postcode, town].filter(Boolean).join(' ')].filter(Boolean).join(', ') };
+      }
+      geoCache.set(q, g);
+    } catch(_){ /* network trouble: leave unchecked */ }
+    document.querySelectorAll('a.map').forEach(a => { if (a.dataset.q === q) decorateMap(a); });
     await new Promise(ok => setTimeout(ok, 1100));
   }
   geoBusy = false;
@@ -238,7 +255,7 @@ function inline(parent, str){
       const a = document.createElement('a'); a.className = 'map';
       a.dataset.q = m[2]; a.href = mapHref(m[2]); geoLookup(m[2]);
       a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '\u{1F4CD} ' + m[2];
-      parent.appendChild(a);
+      parent.appendChild(a); decorateMap(a);
     }
     last = re.lastIndex;
   }
@@ -405,7 +422,7 @@ function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) don
 function say(text){ const id = speechStart(); speechChunk(cleanSpeech(text), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". LANGUAGE RULE, the most important rule: always reply in English only, in British English, no matter what language the user writes or speaks, including Tagalog, Taglish, or any other language. Understand the user in their language, then answer entirely in English, without mixing in other languages and without offering a translated copy. The only exception is when the user explicitly asks you to translate something into another language; even then explain in English. ANSWER STYLE: write like the best modern AI assistants, so the reader understands quickly. Always open with the direct answer in one or two plain sentences. For a simple question stop after one or two short paragraphs. For anything that explains, teaches, compares, plans or has several parts, build a clear structure: use short section headings written as a line starting with "## " (two to four words each); use bullet lines starting with "- " where each bullet begins with a **bold label** followed by a colon and a plain explanation; use numbered lines "1. " for steps or ranked items in order; put a short indented sub-bullet ("  - ") under a bullet only when it truly adds detail. For comparisons of three or more items across the same attributes, use a markdown table with a header row and a "|---|---|" separator row. Explain ideas in plain everyday words, define any technical term the first time it appears, and when a concept is abstract add one concrete example or a simple analogy. Keep paragraphs short, two or three sentences, with a blank line between them. Wrap the few most important words or phrases in double asterisks, like **this**. For any longer answer, finish with one line starting with "> " that gives the bottom line or recommended next step. Do not use other markdown such as code fences, italics or horizontal rules. Keep greetings, thanks and very simple facts such as the time brief and unstructured. CITING SOURCES: when your answer relies on web sources, name them inside the explanation, for example According to [Reuters](https://...), and where it helps the reader, quote the key words from the page in double quotation marks, keeping each quote under about 25 words, copied exactly from the text you actually found, followed by a plain-language explanation of what it means. Never invent or alter a quote; if you do not have the exact words, paraphrase and still name the source. Use quotes from different sources when they add evidence, and say plainly when sources disagree. PICTURES: when the user asks to see, show or find pictures, photos or images, or what something looks like, in any language, never say you cannot show pictures, because the app fetches them for you. Answer briefly about the subject and end your answer with a final separate line in the form [[IMG:subject]], where subject is the one to five word English name of the thing to search for, for example [[IMG:Eiffel Tower Paris]]. Do not use this tag for anything else. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific physical place with a street location, such as a restaurant, shop, hotel, attraction or address, write it as [[Exact place name, City or area]] so the app can add a Google Maps link. Use the exact official name of the place as it appears on Google Maps, taken from your search results, never an invented or shortened name, and always include the city. Never use the double square brackets for a website, web address, online store or company homepage. WEBSITES: write every website as [Short name](https://full-address), for example [Apple Germany](https://www.apple.com/de/), using the exact address from your search results. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. RESEARCH RULES: for any factual question, run at least three Google searches with different wording, including the exact names and terms the user used, and read the most relevant results before answering. Check important claims against at least two independent sources. If the user states something as a fact, says they are sure, or asks you to check again, treat that as a request to verify: search again from scratch with new wording, do not defend your earlier answer, and report what the sources show. If the sources support the user, say plainly that the user is right. If you still find nothing, say exactly what you searched for and what you found, and never claim something is false only because you did not find it. Never say you cannot access the internet. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". LANGUAGE RULE, the most important rule: always reply in English only, in British English, no matter what language the user writes or speaks, including Tagalog, Taglish, or any other language. Understand the user in their language, then answer entirely in English, without mixing in other languages and without offering a translated copy. The only exception is when the user explicitly asks you to translate something into another language; even then explain in English. ANSWER STYLE: write like the best modern AI assistants, so the reader understands quickly. Always open with the direct answer in one or two plain sentences. For a simple question stop after one or two short paragraphs. For anything that explains, teaches, compares, plans or has several parts, build a clear structure: use short section headings written as a line starting with "## " (two to four words each); use bullet lines starting with "- " where each bullet begins with a **bold label** followed by a colon and a plain explanation; use numbered lines "1. " for steps or ranked items in order; put a short indented sub-bullet ("  - ") under a bullet only when it truly adds detail. For comparisons of three or more items across the same attributes, use a markdown table with a header row and a "|---|---|" separator row. Explain ideas in plain everyday words, define any technical term the first time it appears, and when a concept is abstract add one concrete example or a simple analogy. Keep paragraphs short, two or three sentences, with a blank line between them. Wrap the few most important words or phrases in double asterisks, like **this**. For any longer answer, finish with one line starting with "> " that gives the bottom line or recommended next step. Do not use other markdown such as code fences, italics or horizontal rules. Keep greetings, thanks and very simple facts such as the time brief and unstructured. CITING SOURCES: when your answer relies on web sources, name them inside the explanation, for example According to [Reuters](https://...), and where it helps the reader, quote the key words from the page in double quotation marks, keeping each quote under about 25 words, copied exactly from the text you actually found, followed by a plain-language explanation of what it means. Never invent or alter a quote; if you do not have the exact words, paraphrase and still name the source. Use quotes from different sources when they add evidence, and say plainly when sources disagree. PLACE ACCURACY: for any question about places, shops, restaurants, hotels or addresses, accuracy matters far more than speed. Search thoroughly, confirm that each place you recommend really exists, is currently open and not permanently closed, and use its exact name and street address exactly as shown in the search or Google Maps results. Include the street address in your answer. Never invent, guess or shorten a place name or address, and never recommend a place you could not confirm. If you cannot find a good match, say so plainly and suggest opening Google Maps. PICTURES: when the user asks to see, show or find pictures, photos or images, or what something looks like, in any language, never say you cannot show pictures, because the app fetches them for you. Answer briefly about the subject and end your answer with a final separate line in the form [[IMG:subject]], where subject is the one to five word English name of the thing to search for, for example [[IMG:Eiffel Tower Paris]]. Do not use this tag for anything else. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific physical place with a street location, such as a restaurant, shop, hotel, attraction or address, write it as [[Exact place name, City or area]] so the app can add a Google Maps link. Use the exact official name of the place as it appears on Google Maps, taken from your search results, never an invented or shortened name, and always include the city. Never use the double square brackets for a website, web address, online store or company homepage. WEBSITES: write every website as [Short name](https://full-address), for example [Apple Germany](https://www.apple.com/de/), using the exact address from your search results. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. RESEARCH RULES: for any factual question, run at least three Google searches with different wording, including the exact names and terms the user used, and read the most relevant results before answering. Check important claims against at least two independent sources. If the user states something as a fact, says they are sure, or asks you to check again, treat that as a request to verify: search again from scratch with new wording, do not defend your earlier answer, and report what the sources show. If the sources support the user, say plainly that the user is right. If you still find nothing, say exactly what you searched for and what you found, and never claim something is false only because you did not find it. Never say you cannot access the internet. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
 
 
 /* ---------- Clock, memory ---------- */
@@ -484,7 +501,9 @@ function gBody(q, model, extra, useTools){
   if (useTools !== false) tools.push({ google_search:{} });
   if (urlIn(q).length) tools.push({ url_context:{} });
   const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, gOpts.max || (isList(q) ? 3000 : 2200), gOpts.level) };
+  if (gOpts.maps) tools.push({ googleMaps:{} });
   if (tools.length) body.tools = tools;
+  if (gOpts.maps){ try { const o = JSON.parse(store.get('pos', '') || 'null'); if (o && o.lat) body.toolConfig = { retrievalConfig:{ latLng:{ latitude:o.lat, longitude:o.lon } } }; } catch(_){} }
   return JSON.stringify(body);
 }
 let curImg = null;
@@ -542,7 +561,7 @@ async function addNearest(el, q){
   el.appendChild(box); followAnswer(el);
 }
 function status(label){ const d = document.createElement('div'); d.className = 'status'; const i = document.createElement('i'); const t = document.createElement('span'); t.textContent = label; d.appendChild(i); d.appendChild(t); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
-let searchedFlag = false, siteList = [], gChunks = [], gSupports = [], gQueries = [];
+let searchedFlag = false, siteList = [], gChunks = [], gSupports = [], gQueries = [], gMaps = [];
 const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
 async function streamGemini(q, cb, model, extra, useTools, plain){
   const c = cfg();
@@ -559,13 +578,14 @@ async function streamGemini(q, cb, model, extra, useTools, plain){
     if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
     if (gm && gm.webSearchQueries && gm.webSearchQueries.length) gQueries = gm.webSearchQueries;
     if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
+    if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const mp = ch.maps; if (mp && (mp.uri || mp.placeId) && !gMaps.some(x => x.t === mp.title)) gMaps.push({ t: mp.title || 'Place', u: mp.uri || ('https://www.google.com/maps/place/?q=place_id:' + mp.placeId) }); });
     if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
     if (txt) cb(txt);
     return txt;
   }
   const rd = r.body.getReader(), dec = new TextDecoder();
   let buf = '', all = '';
-  searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = [];
+  searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = []; gMaps = [];
   for (;;){
     const { done, value } = await rd.read(); if (done) break;
     buf += dec.decode(value, { stream:true });
@@ -580,6 +600,7 @@ async function streamGemini(q, cb, model, extra, useTools, plain){
         if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
         if (gm && gm.webSearchQueries && gm.webSearchQueries.length) gQueries = gm.webSearchQueries;
     if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
+    if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const mp = ch.maps; if (mp && (mp.uri || mp.placeId) && !gMaps.some(x => x.t === mp.title)) gMaps.push({ t: mp.title || 'Place', u: mp.uri || ('https://www.google.com/maps/place/?q=place_id:' + mp.placeId) }); });
     if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
         if (t){ all += t; cb(all); }
       } catch(_){}
@@ -647,27 +668,28 @@ function listSpeech(t){
 
 const casualQ = /^\s*(?:hi|hello|hey|thanks?|thank you|good (?:morning|afternoon|evening|night)|ok(?:ay)?|cool|nice)\b[^?]{0,20}$|\b(?:who are you|your name|what can you do|how are you)\b/i;
 const isRecheck = q => history.length >= 2 && q.trim().split(/\s+/).length <= 30 && /\b(?:check again|search again|look again|double.?check|re-?check|try again|dig deeper|deep dive|more thorough|look it up|search (?:the )?(?:internet|online|web)|are you sure|i(?:'m| am) (?:sure|certain|positive)|verify (?:it|that|this)|(?:you(?:'re| are)|that(?:'s| is)|it(?:'s| is)|this is) (?:wrong|incorrect|not (?:right|true|correct)|a fact))\b/i.test(q);
-const needsResearch = q => !casualQ.test(q) && (isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q));
+const needsResearch = q => !casualQ.test(q) && (isPlaceQ(q) || isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q));
 const NEG = /\b(?:could(?:\s?not|n't) find|can(?:not|'t) find|unable to (?:find|verify|confirm|locate)|no (?:information|records?|evidence|results|reliable|mention|data)|not able to (?:find|verify|confirm)|did not find|do(?:es)? not have (?:any )?(?:information|data)|don't have (?:any )?(?:information|data)|could not verify)\b/i;
 const DEEPEN = 'IMPORTANT: do a deeper and more thorough search now. Run at least four different Google searches using alternative wording, exact names, other spellings or languages where relevant, official sources, news and forums. Do not repeat or defend any earlier answer. If the user said something is a fact, search specifically to confirm or refute that claim.';
 async function runResearch(q, extra, recheck, c, onStatus){
-  const snap = (txt, tools) => ({ txt, tools, searched: searchedFlag, sites: siteList.slice(), chunks: gChunks, sup: gSupports, qs: gQueries.slice() });
-  const attempt = async (m, lvl, tools, ex) => {
-    searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = [];
-    gOpts = { level: lvl, hist: recheck ? history.slice(0, -2) : null, max: 8192 };
+  const snap = (txt, tools) => ({ txt, tools, searched: searchedFlag, sites: siteList.slice(), chunks: gChunks, sup: gSupports, qs: gQueries.slice(), maps: gMaps.slice() });
+  const attempt = async (m, lvl, tools, ex, maps) => {
+    searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = []; gMaps = [];
+    gOpts = { level: lvl, hist: recheck ? history.slice(0, -2) : null, max: 8192, maps: !!maps };
     let txt = '';
     try { await streamGemini(q, t => { txt = t; }, m, ex, tools, true); } finally { gOpts = {}; }
     return snap(txt, tools);
   };
   const chain = async (list, ex) => {
     let err = null;
-    for (const [m, lvl, tools] of list){
-      try { const r = await attempt(m, lvl, tools, ex); if (r.txt.trim()) return r; err = new Error('No answer came back. Please try again.'); }
-      catch (e){ err = e; if (/API key|API_KEY/i.test(e.message || '')) throw e; }
+    for (const [m, lvl, tools, maps] of list){
+      try { const r = await attempt(m, lvl, tools, ex, maps); if (r.txt.trim()) return r; err = new Error('No answer came back. Please try again.'); }
+      catch (e){ err = e; if (maps) store.set('mapsfail', String(Date.now() + 3600000)); if (/API key|API_KEY/i.test(e.message || '')) throw e; }
     }
     throw err;
   };
-  const first = await chain([[recheck ? c.rm : c.gm, 'high', true], [c.gm, null, true], [c.rm, 'medium', true], [c.gm, null, false]], extra);
+  const useMaps = (isPlaceQ(q) || nearIntent(q)) && Date.now() > Number(store.get('mapsfail', '0'));
+  const first = await chain((useMaps ? [[c.gm, 'high', true, true]] : []).concat([[recheck ? c.rm : c.gm, 'high', true], [c.gm, null, true], [c.rm, 'medium', true], [c.gm, null, false]]), extra);
   const neg = NEG.test(first.txt);
   if (!first.tools || (first.searched && !neg)) return first;
   onStatus('Digging deeper, sir…');
@@ -811,7 +833,7 @@ async function thinkStream(q, extra){
   try {
     if (research){
       const r = await runResearch(q, extra, recheck, c, label => { const sp = wait.querySelector('span'); if (sp && !el) sp.textContent = label; });
-      searchedFlag = r.searched; siteList = r.sites; gChunks = r.chunks; gSupports = r.sup; gQueries = r.qs; toolsOk = r.tools;
+      searchedFlag = r.searched; siteList = r.sites; gChunks = r.chunks; gSupports = r.sup; gQueries = r.qs; gMaps = r.maps || []; toolsOk = r.tools;
       onText(r.txt);
     } else {
       const bk = c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite';
@@ -829,6 +851,12 @@ async function thinkStream(q, extra){
     if (typer) await typer.drain();
     if (imgTag) picTopicNow = imgTag;
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
+    if (el && gMaps.length){
+      const n = document.createElement('div'); n.className = 'srcs';
+      const h = document.createElement('div'); h.className = 'h'; h.textContent = 'Confirmed on Google Maps'; h.setAttribute('translate', 'no'); n.appendChild(h);
+      gMaps.slice(0, 6).forEach(x => { const a = document.createElement('a'); a.href = x.u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '\u{1F4CD} ' + x.t; n.appendChild(a); });
+      el.appendChild(n);
+    }
     let perItem = 0;
     if (searchedFlag && el && body && listMode && gSupports.length) perItem = typer ? typer.render(full, itemLinks(full)) : renderText(body, full, itemLinks(full));
     const siteQ = wantsLinks(q) && !isList(q);
