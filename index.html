@@ -121,6 +121,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
+  <label for="vi">Voice input</label><select id="vi"><option value="acc">Accurate: any language, via Gemini</option><option value="dev">Device: instant, English only</option></select>
   <label for="rm">Research model (factual questions)</label><input id="rm" value="gemini-3.6-flash">
   <label for="dp">Research depth</label><select id="dp"><option value="deep">Thorough: search deeper, slower</option><option value="fast">Fast: quick answers</option></select>
   <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
@@ -895,13 +896,17 @@ txt.addEventListener('keydown', e => { if (e.key === 'Enter'){ unlockSpeech(); s
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, lastStop = 0;
-function listen(){
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function listenSR(){
   if (!live || busy || rec || !SR) return;
   const r = rec = new SR();
   r.lang = 'en-US'; r.interimResults = true; r.continuous = false;
-  let heard = '', sent = false, timer = null, heardAny = false;
+  let heard = '', sent = false, timer = null, heardAny = false, alive = false;
+  r.onstart = r.onaudiostart = () => { alive = true; };
+  setTimeout(() => { if (rec === r && !alive && live && !busy){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(_){} rec = null; setTimeout(listen, 350); } }, 4000);
   const send = () => { clearTimeout(timer); const q = heard.trim(); if (sent || !q || !live) return; sent = true; txt.value = ''; submit(q); };
   r.onresult = e => {
+    alive = true;
     heard = Array.from(e.results).map(x => x[0].transcript).join(' ');
     heardNow = true; clearTimeout(window._hn); window._hn = setTimeout(() => { heardNow = false; }, 700);
     txt.value = heard;
@@ -916,7 +921,88 @@ function listen(){
   r.onend = () => { clearTimeout(timer); if (rec === r) rec = null; send(); if (live && !busy) setTimeout(listen, 200); };
   const begin = (n) => { try { r.start(); } catch(_){ if (n < 6 && rec === r) setTimeout(() => begin(n + 1), 120); else { if (rec === r) rec = null; if (live) setTimeout(listen, 300); } } };
   begin(0);
+  setTimeout(() => { if (rec === r && !heardNow && !heard && live && !busy){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(_){} rec = null; setTimeout(listen, 250); } }, 12000);
   setTimeout(() => { if (rec === r && !heardAny) { /* engine did not start */ } }, 0);
+}
+
+/* ---------- Accurate voice input: record, then transcribe with Gemini (any language) ---------- */
+const recMode = () => store.get('vin', 'acc') !== 'dev' && !!window.MediaRecorder && !!navigator.mediaDevices && Date.now() > (window._recFailUntil || 0);
+function listen(){
+  if (!live || busy || rec) return;
+  if (!recMode()){ listenSR(); return; }
+  listenRec();
+}
+async function transcribeAudio(blob, mime){
+  const c = cfg();
+  const b64 = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result).split(',')[1]); f.onerror = no; f.readAsDataURL(blob); });
+  const body = { contents:[{ role:'user', parts:[
+    { text:'Transcribe this audio exactly as spoken. The speaker may use English, Filipino/Tagalog, Taglish (a mix), or another language. Keep the original language and words; do not translate and do not answer. Output only the transcript. If there is no intelligible speech, output exactly: [silence]' },
+    { inlineData:{ mimeType: mime, data: b64 } } ] }], generationConfig:{ temperature:0, maxOutputTokens:600 } };
+  const m = /^gemini-3/.test(c.gm) ? c.gm : 'gemini-3.5-flash-lite';
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!r.ok){ let t = ''; try { t = (await r.json()).error.message; } catch(_){} throw new Error(t || ('HTTP ' + r.status)); }
+  const j = await r.json(), parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+  return parts.map(x => x.text || '').join('').trim();
+}
+async function listenRec(){
+  const h = { dead:false, abort(){ this.dead = true; try { this.stop && this.stop(); } catch(_){} } };
+  rec = h;
+  let stream = null, ctx = null, mr = null, poll = null;
+  const cleanup = () => { clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch(_){} try { if (ctx) ctx.close(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
+  const again = (ms) => { if (rec === h) rec = null; if (live && !busy) setTimeout(listen, ms || 200); };
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+  } catch(e){
+    if (rec === h) rec = null;
+    if (e && /NotAllowed|Permission/i.test(e.name + e.message)){ stopLive(); add('sys', 'Microphone access was denied, sir. Allow it in Safari settings.'); }
+    else { window._recFailUntil = Date.now() + 60000; setTimeout(listen, 200); }
+    return;
+  }
+  if (h.dead || !live || busy){ cleanup(); if (rec === h) rec = null; return; }
+  const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+  const mime = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(_){ return false; } }) || '';
+  const chunks = [];
+  try { mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); } catch(e){ cleanup(); window._recFailUntil = Date.now() + 60000; rec = null; setTimeout(listen, 200); return; }
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  let AC = window.AudioContext || window.webkitAudioContext, an = null;
+  try { ctx = new AC(); if (ctx.state === 'suspended') ctx.resume(); const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an); h.an = an; meterAn = an; } catch(_){}
+  const t0 = Date.now(); let speechAt = 0, lastLoud = 0, floor = 0, nf = 0, heardSpeech = false;
+  const buf = new Uint8Array(512);
+  poll = setInterval(() => {
+    if (h.dead){ cleanup(); return; }
+    let rms = 0;
+    if (an){ an.getByteTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++){ const x = (buf[i] - 128) / 128; sum += x * x; } rms = Math.sqrt(sum / buf.length); }
+    const now = Date.now();
+    if (now - t0 < 500){ floor += rms; nf++; return; }
+    const thr = Math.max(.02, (floor / Math.max(1, nf)) * 2.8);
+    if (rms > thr){ lastLoud = now; if (!heardSpeech){ heardSpeech = true; speechAt = now; } heardNow = true; clearTimeout(window._hn); window._hn = setTimeout(() => { heardNow = false; }, 400); }
+    const silentFor = now - lastLoud;
+    if ((heardSpeech && silentFor > 1100) || (!heardSpeech && now - t0 > 9000) || now - t0 > 30000) { clearInterval(poll); try { mr.stop(); } catch(_){} }
+  }, 60);
+  h.stop = () => { clearInterval(poll); try { if (mr.state !== 'inactive') mr.stop(); } catch(_){} };
+  mr.onstop = async () => {
+    const had = heardSpeech, type = mr.mimeType || mime || 'audio/mp4';
+    cleanup();
+    if (h.dead || !live){ if (rec === h) rec = null; return; }
+    if (!had || !chunks.length){ again(150); return; }
+    txt.value = '…';
+    try {
+      const q = await transcribeAudio(new Blob(chunks, { type }), type.split(';')[0]);
+      if (h.dead || !live){ if (rec === h) rec = null; txt.value = ''; return; }
+      txt.value = '';
+      const clean = q.replace(/^["'\s]+|["'\s]+$/g, '');
+      if (rec === h) rec = null;
+      if (!clean || /^\[?\s*silence\s*\]?\.?$/i.test(clean)){ again(150); return; }
+      submit(clean);
+    } catch(e){
+      txt.value = '';
+      if (rec === h) rec = null;
+      window._recFailUntil = Date.now() + 60000;
+      add('sys', 'Accurate transcription was unavailable (' + String(e.message || e).slice(0, 90) + '). Using the standard listener for a minute, sir.');
+      if (live && !busy) setTimeout(listen, 200);
+    }
+  };
+  mr.start();
 }
 function stopLive(){
   live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn);
@@ -928,7 +1014,7 @@ function stopLive(){
 }
 async function startLive(){
   unlockSpeech();
-  if (!SR){ add('sys', 'Voice input is not available here, sir. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
+  if (!SR && !recMode()){ add('sys', 'Voice input is not available here, sir. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
   live = true; busy = false;
   $('mic').classList.add('on'); document.body.classList.add('live'); $('vm').classList.add('open');
   listen();
@@ -943,7 +1029,7 @@ $('vm').onclick = e => { if (e.target.id === 'vm' || e.target.closest('#vmx') ||
 let lvl = 0, meterCtx = null, meterAn = null, meterStream = null;
 let meterBusy = false;
 async function meterOn(){
-  if (meterAn || meterBusy || !navigator.mediaDevices) return;
+  if (IOS || recMode() || meterAn || meterBusy || !navigator.mediaDevices) return;
   meterBusy = true;
   try {
     const st = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
@@ -964,7 +1050,8 @@ function meterOff(){
   const vm = $('vm');
   if (vm.classList.contains('open')){
     let raw = 0;
-    if (meterAn){
+    if (!meterAn && IOS){ if (heardNow) raw = .3 + .3 * Math.abs(Math.sin(Date.now() / 120)); }
+    else if (meterAn){
       const d = new Uint8Array(meterAn.fftSize); meterAn.getByteTimeDomainData(d);
       let sum = 0; for (let i = 0; i < d.length; i++){ const x = (d[i] - 128) / 128; sum += x * x; }
       raw = Math.min(1, Math.sqrt(sum / d.length) * 7);
@@ -1021,12 +1108,12 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('rm').value = c.rm; $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
