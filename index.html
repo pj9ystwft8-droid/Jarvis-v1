@@ -86,6 +86,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 .body .p:last-child{margin-bottom:0}
 .body .h{font-weight:650;color:#fff;font-size:1.06em;margin:24px 0 10px;padding-left:10px;border-left:2px solid var(--arc);line-height:1.3}
 .body .h:first-child{margin-top:0}
+.body .w.u{display:none}
+.body .w.say{background:rgba(111,211,255,.30);color:#fff;border-radius:4px;box-shadow:0 0 0 2px rgba(111,211,255,.30)}
 .body .q{margin:18px 0 0;padding:10px 12px;border-radius:8px;background:rgba(111,211,255,.07);border-left:2px solid var(--arc);line-height:1.5}
 .body .li.sub{margin:-8px 0 14px 26px;font-size:.95em;color:var(--dim)}
 .body .tw{overflow-x:auto;margin:0 0 18px;-webkit-overflow-scrolling:touch}
@@ -125,7 +127,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15k</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15m</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -150,6 +152,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="mem">Memory (one fact per line)</label><textarea id="mem" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:15px"></textarea>
   <label for="rd">Reading aloud</label><select id="rd"><option value="short">Short: the first part only</option><option value="full">Full answer</option></select>
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
+  <label for="rl">Reply language</label><select id="rl"><option value="en">English (Daniel, default)</option></select>
   <label for="vc">Voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
   <div class="row"><button id="loc">Allow location</button></div>
@@ -293,7 +296,14 @@ function add(cls, text, source){
   if (cls === 'ai' && text) followAnswer(d); else log.scrollTop = log.scrollHeight;
   return d;
 }
+function voiceFor(code){
+  const lc = String(code).toLowerCase().replace('_', '-'), pri = lc.split('-')[0], al = { tl:'fil', fil:'tl', nb:'no', no:'nb' }[pri];
+  const same = x => { const v = x.lang.toLowerCase().replace('_', '-'), vp = v.split('-')[0]; return vp === pri || vp === al; };
+  const all = voices().filter(same);
+  return all.find(x => x.lang.toLowerCase().replace('_', '-') === lc) || all[0] || null;
+}
 function pickVoice(){
+  const L = curLang(); if (L) return voiceFor(L.code);
   const all = voices(), saved = store.get('voice','');
   return all.find(x => /daniel/i.test(x.name) && /en[-_]GB/i.test(x.lang)) || all.find(x => /daniel/i.test(x.name)) || all.find(x => x.voiceURI === saved) || all.find(x => /en[-_]GB/i.test(x.lang)) || null;
 }
@@ -327,7 +337,8 @@ function wakeHint(){
   d.appendChild(b);
 }
 function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec){ listen(); setTimeout(meterOn, 400); } }
-function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
+function speechStart(){ if (HL.T){ HL.T.clear(); HL.T = null; } sayId++; pend = 0; fin = false; ttsEnd = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
+const HL = { T:null };
 const spq = []; let spBusy = false, curIt = null;
 function spPump(){
   if (spBusy) return;
@@ -336,10 +347,11 @@ function spPump(){
   if (!it) return;
   spBusy = true; curIt = it;
   let started = false, ended = false, resc = 0;
-  const next = () => { if (ended) return; ended = true; clearTimeout(wd); if (curIt === it){ spBusy = false; curIt = null; } it.finish(); if (curIt === null) spPump(); };
+  const next = () => { if (ended) return; ended = true; clearTimeout(wd); if (it.hl) it.hl.end(); if (curIt === it){ spBusy = false; curIt = null; } it.finish(); if (curIt === null) spPump(); };
   const wd = setTimeout(next, it.text.length * 110 + 6000);
-  it.u.onstart = () => { started = true; ttsConfirmed = true; };
-  it.u.onend = next;
+  it.u.onstart = () => { started = true; ttsConfirmed = true; if (it.hl) it.hl.start(); };
+  it.u.onboundary = e => { if (it.hl && (!e.name || e.name === 'word')) it.hl.boundary(e.charIndex); };
+  it.u.onend = () => { if (it.hl) it.hl.end(); next(); };
   it.u.onerror = () => { if (Date.now() - resc < 500) return; next(); };
   document.body.classList.add('talk');
   try { speechSynthesis.resume(); } catch(_){}
@@ -355,14 +367,14 @@ function speechChunk(text, id){
   if (!text || !window.speechSynthesis || id !== sayId) return;
   if (text.length > 380){ let i = text.lastIndexOf(', ', 380); if (i < 150) i = text.lastIndexOf(' ', 380); if (i < 1) i = 380; speechChunk(text.slice(0, i), id); speechChunk(text.slice(i), id); return; }
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-GB'; u.rate = 1.05;
+  u.lang = (curLang() || {}).code || 'en-GB'; u.rate = 1.05;
   let v = pickVoice();
   if (!v && window.speechSynthesis) { try { speechSynthesis.getVoices(); v = pickVoice(); } catch(_){} }
   if (v){ u.voice = v; u.lang = v.lang; }
   pend++;
   let fired = false;
   const finish = () => { if (fired || id !== sayId) return; fired = true; pend--; if (pend <= 0 && fin) done(id); };
-  spq.push({ u, text, id, finish });
+  spq.push({ u, text, id, finish, hl: HL.T ? HL.T.addItem(text) : null });
   spPump();
 }
 setInterval(() => { try { if (!IOS && window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch(e){} }, 10000);
@@ -380,9 +392,21 @@ function nowText(){
 }
 function facts(){ try { return JSON.parse(store.get('facts','[]')); } catch(e){ return []; } }
 function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-60))); }
+const LANG_RE = /^\s*\[\[LANG:\s*([^|\]]+?)\s*\|\s*([^\]\s]+)\s*\]\]\s*/i;
+function curLang(){ try { const o = JSON.parse(store.get('lang', '') || 'null'); if (o && o.name && o.code) return o; } catch(_){} return null; }
+function takeLang(t){
+  t = String(t); const m = t.match(LANG_RE); if (!m) return t;
+  if (/^en(-|$)/i.test(m[2]) || /^english$/i.test(m[1])) store.set('lang', ''); else store.set('lang', JSON.stringify({ name: m[1], code: m[2] }));
+  return t.replace(LANG_RE, '');
+}
+const langHold = t => /^\s*\[{1,2}(?:L(?:A(?:N(?:G:?)?)?)?)?$/i.test(t) || (/^\s*\[\[LANG:[^\]]*$/i.test(t) && t.length < 90);
 function sysPrompt(){
   const f = facts();
-  return BASE_SYSTEM + ' Remember: your whole reply must be in English.' + (simpleOn ? ' ' + SIMPLE_RULE : '') + ' If the user attaches a picture, look at it carefully and describe or explain what it shows. If the message contains a web link, read that page and explain what it is and what it says.' + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it. Never volunteer or mention any activation date, startup date, creation date or version, and do not mention today\'s date unless asked. Only if the user asks when you were created, activated or last updated, answer that you were created by DMS and were last updated on November 15, 2026.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
+  const L = curLang();
+  let base = BASE_SYSTEM;
+  if (L) base = base.replace(/LANGUAGE RULE[\s\S]*?even then explain in English\./, 'LANGUAGE RULE, the most important rule: the user has told you they do not speak or understand English. Reply entirely in ' + L.name + ' (language code ' + L.code + '), in simple, clear words, using English only for names and technical terms. Begin the very first line of every reply with the tag [[LANG:' + L.name + '|' + L.code + ']] and put the reply after it. If the user asks to go back to English, begin with [[LANG:English|en-GB]] and answer in English.');
+  else base = base.replace('even then explain in English.', 'even then explain in English. EXCEPTION: if the user says, in any language, that they do not speak, read or understand English, then from that reply onward answer in the language the user is using, and begin the very first line of that reply with the tag [[LANG:Language name|BCP-47 code]], for example [[LANG:Tagalog|fil-PH]] or [[LANG:Spanish|es-ES]], with the reply after it. The tag contains only the language name and the code.');
+  return base + (L ? '' : ' Remember: your whole reply must be in English unless the user has said they do not understand English.') + (simpleOn ? ' ' + SIMPLE_RULE : '') + ' If the user attaches a picture, look at it carefully and describe or explain what it shows. If the message contains a web link, read that page and explain what it is and what it says.' + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it. Never volunteer or mention any activation date, startup date, creation date or version, and do not mention today\'s date unless asked. Only if the user asks when you were created, activated or last updated, answer that you were created by DMS and were last updated on November 15, 2026.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
 }
 
 
@@ -441,7 +465,7 @@ async function askGemini(q, extra){
   });
   const j = await r.json();
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
-  return j.candidates[0].content.parts.map(p => p.text || '').join('');
+  return takeLang(j.candidates[0].content.parts.map(p => p.text || '').join(''));
 }
 const wantsLinks = q => /\b(links?|sources?|websites?|urls?|references?|cite|citations?|where did you (?:get|find|read))\b/i.test(q);
 const isPlaceQ = q => /\b(near me|nearby|restaurants?|cafes?|coffee shops?|hotels?|where is|directions?|how (?:do i|to) get to|route to|open now|bars?|malls?|hospitals?|pharmacy|gas station|places to)\b/i.test(q);
@@ -542,7 +566,7 @@ async function askOpenAI(q, hist, extra){
   });
   const j = await r.json();
   if (!r.ok) throw new Error((j.error && j.error.message) || 'OpenAI error');
-  return j.choices[0].message.content;
+  return takeLang(j.choices[0].message.content);
 }
 async function referee(q, a, b){
   // Gemini judges which answer is stronger: returns "A" or "B"
@@ -622,6 +646,102 @@ async function runResearch(q, extra, recheck, c, onStatus){
   if (second && second.txt.trim() && second.searched && (!first.searched || neg)) return second;
   return first;
 }
+
+/* ---------- Typewriter reveal + spoken-word highlight ---------- */
+const normW = w => String(w).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+function wrapWords(root){
+  const out = [];
+  const walk = node => {
+    Array.from(node.childNodes).forEach(ch => {
+      if (ch.nodeType === 3){
+        if (!ch.nodeValue.trim()) return;
+        const frag = document.createDocumentFragment();
+        ch.nodeValue.split(/(\s+)/).forEach(p => {
+          if (!p) return;
+          if (/^\s+$/.test(p)){ frag.appendChild(document.createTextNode(p)); return; }
+          const sp = document.createElement('span'); sp.className = 'w'; sp.textContent = p; sp._t = p; out.push(sp); frag.appendChild(sp);
+        });
+        node.replaceChild(frag, ch);
+      } else if (ch.nodeType === 1 && !(ch.classList && ch.classList.contains('w'))) walk(ch);
+    });
+  };
+  walk(root);
+  out.forEach((w, i) => { let c = w; while (c.parentNode && c.parentNode !== root) c = c.parentNode; if (c.parentNode === root && c._fw === undefined) c._fw = i; });
+  return out;
+}
+function makeTyper(body){
+  const T = { words:[], norm:[], start:[], total:0, shown:0, items:[], ptr:0, cur:-1, all:false, last:Date.now(), timer:0 };
+  const kids = () => Array.from(body.children);
+  T.layout = () => {
+    let c = 0; T.start = T.words.map(w => { const s0 = c; c += w._t.length + 1; return s0; }); T.total = c;
+  };
+  T.paint = () => {
+    const sc = T.all ? Infinity : T.shown;
+    T.words.forEach((w, i) => {
+      const st = T.start[i];
+      if (st >= sc){ if (!w.classList.contains('u')) w.classList.add('u'); }
+      else {
+        if (w.classList.contains('u')) w.classList.remove('u');
+        const need = sc - st >= w._t.length ? w._t : w._t.slice(0, sc - st);
+        if (w.textContent !== need) w.textContent = need;
+      }
+    });
+    kids().forEach(c => { if (c._fw !== undefined) c.style.display = T.start[c._fw] >= sc ? 'none' : ''; });
+  };
+  T.alignAll = () => {
+    let ptr = 0;
+    T.items.forEach(it => { it.map = it.norms.map(n => { if (!n) return -1; for (let k = ptr, e = Math.min(T.norm.length, ptr + 150); k < e; k++) if (T.norm[k] === n){ ptr = k + 1; return k; } return -1; }); });
+    T.ptr = ptr;
+  };
+  T.render = (text, linksFn) => {
+    const r = renderText(body, text, linksFn);
+    T.words = wrapWords(body); T.norm = T.words.map(w => normW(w._t));
+    T.layout(); T.paint(); T.alignAll();
+    if (T.cur >= 0 && T.words[T.cur]) T.words[T.cur].classList.add('say');
+    return r;
+  };
+  T.say = i => {
+    if (T.cur >= 0 && T.words[T.cur]) T.words[T.cur].classList.remove('say');
+    T.cur = i;
+    if (i >= 0 && T.words[i]) T.words[i].classList.add('say');
+  };
+  T.clear = () => { T.say(-1); };
+  T.addItem = text => {
+    const norms = [], starts = [];
+    String(text).replace(/\S+/g, (m, off) => { norms.push(normW(m)); starts.push(off); return m; });
+    const it = { norms, starts, map: [], gotB: false, tm: 0, t0: 0, text };
+    let ptr = T.ptr;
+    it.map = norms.map(n => { if (!n) return -1; for (let k = ptr, e = Math.min(T.norm.length, ptr + 150); k < e; k++) if (T.norm[k] === n){ ptr = k + 1; return k; } return -1; });
+    T.ptr = ptr; T.items.push(it);
+    const at = j => { for (let k = it.map.length ? Math.min(j, it.map.length - 1) : 0; k >= 0; k--) if (it.map[k] >= 0) return it.map[k]; return -1; };
+    it.start = () => {
+      it.gotB = false; clearInterval(it.tm); it.t0 = Date.now(); T.say(at(0));
+      it.tm = setInterval(() => {
+        if (it.gotB){ clearInterval(it.tm); return; }
+        if (Date.now() - it.t0 < 450) return;
+        const pos = (Date.now() - it.t0 - 150) / 65; let j = 0;
+        for (let k = 0; k < starts.length; k++) if (starts[k] <= pos) j = k;
+        T.say(at(j));
+      }, 60);
+    };
+    it.boundary = ci => { it.gotB = true; clearInterval(it.tm); let j = 0; for (let k = 0; k < starts.length; k++) if (starts[k] <= ci) j = k; T.say(at(j)); };
+    it.end = () => { clearInterval(it.tm); };
+    return it;
+  };
+  T.tick = () => {
+    const now = Date.now(), dt = Math.min(200, now - T.last); T.last = now;
+    if (T.all || T.shown >= T.total) return;
+    if (document.hidden){ T.shown = T.total; T.paint(); return; }
+    const rate = Math.min(2400, 260 + (T.total - T.shown) * 4);
+    T.shown = Math.min(T.total, T.shown + Math.max(1, Math.round(dt / 1000 * rate)));
+    T.paint();
+    if (T.onTick) T.onTick();
+  };
+  T.timer = setInterval(T.tick, 30);
+  T.drain = () => new Promise(res => { const chk = () => { if (T.shown >= T.total || document.hidden){ T.shown = T.total; T.all = true; T.paint(); res(); } else setTimeout(chk, 40); }; chk(); });
+  T.stop = () => { clearInterval(T.timer); };
+  return T;
+}
 async function thinkStream(q, extra){
   if (nearIntent(q)){
     try { getPos().catch(() => {}); } catch(e){}
@@ -634,7 +754,7 @@ async function thinkStream(q, extra){
   const research = store.get('depth', 'deep') !== 'fast' && needsResearch(q) && !curImg;
   const wait = status(research ? 'Researching the web…' : (needsWeb(q) ? 'Searching the web…' : 'Thinking…')), id = speechStart();
   const slow = research ? setTimeout(() => { const sp = wait.querySelector('span'); if (sp && sp.textContent === 'Researching the web…') sp.textContent = 'Still researching, sir…'; }, 9000) : 0;
-  let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false;
+  let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false, typer = null;
   const listMode = isList(q), readAll = store.get('read2', 'full') === 'full', LIM = 420;
   const speakPart = t => {
     t.split(/(?<=[.!?])\s+|\n+/).forEach(sn => {
@@ -651,8 +771,11 @@ async function thinkStream(q, extra){
     if (m){ spoken += m[0].length; speakPart(m[0]); }
   };
   const onText = all => {
+    if (langHold(all)) return;
     if (!el){ wait.remove(); el = add('ai', '', 'Gemini'); body = document.createElement('div'); body.className = 'body'; el.insertBefore(body, el.firstChild); }
-    full = all; renderText(body, all); followAnswer(el); flush(false);
+    all = takeLang(all);
+    if (!typer){ typer = makeTyper(body); typer.onTick = () => followAnswer(el); HL.T = typer; }
+    full = all; typer.render(all); followAnswer(el); flush(false);
   };
   try {
     if (research){
@@ -672,9 +795,10 @@ async function thinkStream(q, extra){
     if (!full.trim()) throw new Error('No answer came back. Please try again.');
     if (listMode && !readAll) speechChunk(cleanSpeech(listSpeech(full)), id); else { flush(true); if (cut) speechChunk('The rest of the answer is on your screen, sir.', id); }
     speechEnd(id);
+    if (typer) await typer.drain();
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
     let perItem = 0;
-    if (searchedFlag && el && body && listMode && gSupports.length) perItem = renderText(body, full, itemLinks(full));
+    if (searchedFlag && el && body && listMode && gSupports.length) perItem = typer ? typer.render(full, itemLinks(full)) : renderText(body, full, itemLinks(full));
     const siteQ = wantsLinks(q) && !isList(q);
     if (el && !perItem && (full.length > 120 || siteQ) && (siteList.length || needsWeb(q) || siteQ || gQueries.length)){
       const n = document.createElement('div'); n.className = 'srcs';
@@ -721,7 +845,7 @@ async function thinkStream(q, extra){
   } catch(e){
     wait.remove();
     const fe = friendlyError(e); add('ai', fe); say(fe);
-  } finally { clearTimeout(slow); curImg = null; }
+  } finally { clearTimeout(slow); curImg = null; if (typer) typer.stop(); }
 }
 
 async function think(q, extra){
@@ -952,7 +1076,7 @@ const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform 
 function listenSR(){
   if (!live || busy || rec || !SR) return;
   const r = rec = new SR();
-  r.lang = 'en-US'; r.interimResults = true; r.continuous = false;
+  r.lang = (curLang() || {}).code || 'en-US'; r.interimResults = true; r.continuous = false;
   let heard = '', sent = false, timer = null, heardAny = false, alive = false;
   r.onstart = r.onaudiostart = () => { alive = true; };
   setTimeout(() => { if (rec === r && !alive && live && !busy){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(_){} rec = null; setTimeout(listen, 350); } }, 4000);
@@ -1203,12 +1327,13 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
+  $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
