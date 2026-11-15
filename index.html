@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -94,9 +95,15 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 .srcs a{display:block;color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:6px 0;word-break:break-word}
 #log > :first-child{margin-top:auto}
 .status{align-self:flex-start;display:flex;align-items:center;gap:10px;color:var(--dim);font-size:14px;padding:2px 6px}
-.status i{width:9px;height:9px;border-radius:50%;background:var(--arc);animation:blink 1s ease-in-out infinite}
+.status i{position:relative;flex:none;width:24px;height:24px;border-radius:50%;background:radial-gradient(circle,#fff 0 9%,var(--arc) 24%,rgba(111,211,255,.22) 50%,transparent 54%);box-shadow:0 0 8px rgba(111,211,255,.5);animation:arcb 1.3s ease-in-out infinite}
+.status i::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(var(--arc) 0 16deg,transparent 16deg 40deg);-webkit-mask:radial-gradient(circle,transparent 56%,#000 60%,#000 80%,transparent 84%);mask:radial-gradient(circle,transparent 56%,#000 60%,#000 80%,transparent 84%);opacity:.85;animation:arcs 3.2s linear infinite}
+.status i::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid var(--arc);opacity:.55}
+.status span{background:linear-gradient(90deg,var(--dim) 0 38%,#eaf7ff 50%,var(--dim) 62% 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:shim 1.9s linear infinite}
+@keyframes arcb{0%,100%{opacity:.55;box-shadow:0 0 4px rgba(111,211,255,.35)}50%{opacity:1;box-shadow:0 0 16px rgba(111,211,255,.85)}}
+@keyframes arcs{to{transform:rotate(360deg)}}
+@keyframes shim{from{background-position:130% 0}to{background-position:-130% 0}}
 @keyframes blink{50%{opacity:.25;transform:scale(.7)}}
-@media (prefers-reduced-motion:reduce){.status i{animation:none}}
+@media (prefers-reduced-motion:reduce){.status i,.status i::before,.status span{animation:none}.status span{-webkit-text-fill-color:currentColor;color:var(--dim)}}
 .body b{font-weight:650;color:#fff}
 .body a.lnk{color:var(--arc);text-decoration:underline;text-underline-offset:3px;word-break:break-all}
 .body a.map{color:var(--arc);text-decoration:underline;text-underline-offset:3px;font-weight:600}
@@ -122,7 +129,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 </div>
 
 <dialog id="dlg">
-  <strong>Settings</strong>
+  <strong>Settings</strong> <span style="color:var(--dim);font-size:12px">build 15 Nov · e</span>
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
@@ -296,6 +303,7 @@ function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; if (live) me
 function speechChunk(text, id){
   text = text.trim();
   if (!text || !window.speechSynthesis || id !== sayId) return;
+  if (text.length > 380){ let i = text.lastIndexOf(', ', 380); if (i < 150) i = text.lastIndexOf(' ', 380); if (i < 1) i = 380; speechChunk(text.slice(0, i), id); speechChunk(text.slice(i), id); return; }
   const u = new SpeechSynthesisUtterance(text.slice(0, 400));
   u.lang = 'en-GB'; u.rate = 1.05;
   let v = pickVoice();
@@ -511,7 +519,7 @@ async function referee(q, a, b){
   } catch(e){ return 'A'; }
 }
 
-function cleanSpeech(t){ return t.replace(/\[\[|\]\]/g, '').replace(/[*_#`]/g, ''); }
+function cleanSpeech(t){ return t.replace(/\[([^\]]+)\]\((?:https?:\/\/)[^)\s]+\)/g, '$1').replace(/https?:\/\/\S+/g, '').replace(/\[\[|\]\]/g, '').replace(/[*_#`]/g, ''); }
 function renewText(){
   const now = new Date();
   const la = new Date(now.toLocaleString('en-US', { timeZone:'America/Los_Angeles' }));
@@ -588,7 +596,7 @@ async function thinkStream(q, extra){
   const wait = status(research ? 'Researching the web…' : (needsWeb(q) ? 'Searching the web…' : 'Thinking…')), id = speechStart();
   const slow = research ? setTimeout(() => { const sp = wait.querySelector('span'); if (sp && sp.textContent === 'Researching the web…') sp.textContent = 'Still researching, sir…'; }, 9000) : 0;
   let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false;
-  const listMode = isList(q), readAll = store.get('read', 'short') === 'full', LIM = 420;
+  const listMode = isList(q), readAll = store.get('read2', 'full') === 'full', LIM = 420;
   const speakPart = t => {
     t.split(/(?<=[.!?])\s+|\n+/).forEach(sn => {
       if (!sn.trim()) return;
@@ -597,7 +605,7 @@ async function thinkStream(q, extra){
     });
   };
   const flush = final => {
-    if (listMode) return;
+    if (listMode && !readAll) return;
     const rest = full.slice(spoken);
     if (final){ speakPart(rest); spoken = full.length; return; }
     const m = rest.match(/^[\s\S]*[.!?](?=\s)/);
@@ -623,7 +631,7 @@ async function thinkStream(q, extra){
       if (lastErr) throw lastErr;
     }
     if (!full.trim()) throw new Error('No answer came back. Please try again.');
-    if (listMode) speechChunk(cleanSpeech(listSpeech(full)), id); else { flush(true); if (cut) speechChunk('The rest of the answer is on your screen, sir.', id); }
+    if (listMode && !readAll) speechChunk(cleanSpeech(listSpeech(full)), id); else { flush(true); if (cut) speechChunk('The rest of the answer is on your screen, sir.', id); }
     speechEnd(id);
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
     let perItem = 0;
@@ -937,7 +945,7 @@ function listen(){
   if (!recMode()){ listenSR(); return; }
   listenRec();
 }
-let vstream = null, micWait = false;
+let vstream = null, micWait = false, vctx = null;
 async function getMic(){
   micKill();
   vstream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
@@ -950,9 +958,11 @@ async function transcribeAudio(blob, mime){
   const b64 = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result).split(',')[1]); f.onerror = no; f.readAsDataURL(blob); });
   const body = { contents:[{ role:'user', parts:[
     { text:'Transcribe this audio exactly as spoken. The speaker may use English, Filipino/Tagalog, Taglish (a mix), or another language. Keep the original language and words; do not translate and do not answer. Output only the transcript. If there is no intelligible speech, output exactly: [silence]' },
-    { inlineData:{ mimeType: mime, data: b64 } } ] }], generationConfig:{ temperature:0, maxOutputTokens:600 } };
-  const m = /^gemini-3/.test(c.gm) ? c.gm : 'gemini-3.5-flash-lite';
-  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    { inlineData:{ mimeType: mime, data: b64 } } ] }], generationConfig:{ temperature:0, maxOutputTokens:600, thinkingConfig:{ thinkingLevel:'minimal' } } };
+  const m = 'gemini-3.5-flash-lite';
+  const go = () => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  let r = await go();
+  if (!r.ok && r.status === 400){ delete body.generationConfig.thinkingConfig; r = await go(); }
   if (!r.ok){ let t = ''; try { t = (await r.json()).error.message; } catch(_){} throw new Error(t || ('HTTP ' + r.status)); }
   const j = await r.json(), parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
   return parts.map(x => x.text || '').join('').trim();
@@ -961,7 +971,7 @@ async function listenRec(){
   const h = { dead:false, abort(){ this.dead = true; try { this.stop && this.stop(); } catch(_){} } };
   rec = h; micWait = true;
   let stream = null, ctx = null, mr = null, poll = null;
-  const cleanup = () => { micWait = false; clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { micKill(); } catch(_){} try { if (ctx) ctx.close(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
+  const cleanup = () => { micWait = false; clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { micKill(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
   const again = (ms) => { if (rec === h) rec = null; if (live && !busy) setTimeout(listen, ms || 200); };
   try {
     stream = await getMic();
@@ -975,10 +985,10 @@ async function listenRec(){
   const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
   const mime = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(_){ return false; } }) || '';
   const chunks = [];
-  try { mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); } catch(e){ cleanup(); window._recFailUntil = Date.now() + 60000; rec = null; setTimeout(listen, 200); return; }
+  try { mr = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 24000 }) : new MediaRecorder(stream, { audioBitsPerSecond: 24000 }); } catch(e){ cleanup(); window._recFailUntil = Date.now() + 60000; rec = null; setTimeout(listen, 200); return; }
   mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   let AC = window.AudioContext || window.webkitAudioContext, an = null;
-  try { ctx = new AC(); if (ctx.state === 'suspended') ctx.resume(); const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an); h.an = an; meterAn = an; } catch(_){}
+  try { ctx = vctx || (vctx = new AC()); if (ctx.state !== 'running') ctx.resume(); const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an); h.an = an; meterAn = an; } catch(_){}
   const t0 = Date.now(); let speechAt = 0, lastLoud = 0, floor = 0, nf = 0, heardSpeech = false, anyNz = false;
   h.speaking = () => heardSpeech;
   const buf = new Uint8Array(512);
@@ -988,7 +998,7 @@ async function listenRec(){
     if (an){ an.getByteTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++){ const x = (buf[i] - 128) / 128; sum += x * x; } rms = Math.sqrt(sum / buf.length); }
     const now = Date.now();
     if (rms > 0){ anyNz = true; micWait = false; }
-    if (!anyNz && now - t0 > 1000){
+    if (!anyNz && now - t0 > 1000 && ctx && ctx.state === 'running'){
       h.dead = true; cleanup(); micKill(); if (rec === h) rec = null;
       window._deadN = (window._deadN || 0) + 1;
       if (window._deadN >= 2){ window._deadN = 0; window._recFailUntil = Date.now() + 60000; add('sys', 'The iPhone muted the microphone, sir. Using the standard listener for a minute.'); }
@@ -999,7 +1009,7 @@ async function listenRec(){
     const thr = Math.max(.02, (floor / Math.max(1, nf)) * 2.8);
     if (rms > thr){ lastLoud = now; if (!heardSpeech){ heardSpeech = true; speechAt = now; } heardNow = true; clearTimeout(window._hn); window._hn = setTimeout(() => { heardNow = false; }, 400); }
     const silentFor = now - lastLoud;
-    if ((heardSpeech && silentFor > 1100) || (!heardSpeech && now - t0 > 9000) || now - t0 > 30000) { clearInterval(poll); try { mr.stop(); } catch(_){} }
+    if ((heardSpeech && silentFor > 700) || (!heardSpeech && now - t0 > 9000) || now - t0 > 30000) { clearInterval(poll); try { mr.stop(); } catch(_){} }
   }, 60);
   h.stop = () => { clearInterval(poll); try { if (mr.state !== 'inactive') mr.stop(); } catch(_){} };
   mr.onstop = async () => {
@@ -1038,6 +1048,7 @@ function stopLive(){
 }
 async function startLive(){
   unlockSpeech();
+  try { const AC0 = window.AudioContext || window.webkitAudioContext; if (AC0){ vctx = vctx || new AC0(); if (vctx.state !== 'running') vctx.resume(); } } catch(_){}
   if (!SR && !recMode()){ add('sys', 'Voice input is not available here, sir. Open Jarvis in Safari, or use the keyboard microphone.'); return; }
   live = true; busy = false;
   $('mic').classList.add('on'); document.body.classList.add('live'); $('vm').classList.add('open');
@@ -1153,12 +1164,12 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
