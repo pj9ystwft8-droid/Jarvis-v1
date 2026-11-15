@@ -139,6 +139,14 @@ const store = {
   set(k, v){ try { localStorage.setItem(k, v) } catch(e){} }
 };
 const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini') });
+let manualScroll = false;
+log.addEventListener('touchmove', () => { manualScroll = true; }, { passive:true });
+log.addEventListener('wheel', () => { manualScroll = true; }, { passive:true });
+function followAnswer(el){
+  if (manualScroll || !el) return;
+  const max = log.scrollHeight - log.clientHeight;
+  log.scrollTop = Math.max(0, Math.min(max, el.offsetTop - 60));
+}
 let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
 function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
 
@@ -211,7 +219,8 @@ function add(cls, text, source){
   if (cls === 'ai' && text){ const b = document.createElement('div'); b.className = 'body'; renderText(b, text); d.appendChild(b); }
   else d.textContent = text;
   if (source){ const s = document.createElement('span'); s.className = 'src'; s.textContent = 'Answered by ' + source; d.appendChild(s); }
-  log.appendChild(d); log.scrollTop = log.scrollHeight;
+  log.appendChild(d);
+  if (cls === 'ai' && text) followAnswer(d); else log.scrollTop = log.scrollHeight;
   return d;
 }
 function pickVoice(){
@@ -465,7 +474,7 @@ async function thinkStream(q, extra){
   };
   const onText = all => {
     if (!el){ wait.remove(); el = add('ai', '', 'Gemini'); body = document.createElement('div'); body.className = 'body'; el.insertBefore(body, el.firstChild); }
-    full = all; renderText(body, all); log.scrollTop = log.scrollHeight; flush(false);
+    full = all; renderText(body, all); followAnswer(el); flush(false);
   };
   try {
     const bk = c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite';
@@ -640,7 +649,7 @@ async function addPics(el, topic){
     a.href = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(topic); a.textContent = 'Open Google Images for ' + topic;
     box.appendChild(a);
   }
-  el.appendChild(box); log.scrollTop = log.scrollHeight;
+  el.appendChild(box); followAnswer(el);
 }
 
 
@@ -703,6 +712,7 @@ function submit(q){
   q = q.trim();
   if (!q && attach) q = 'Explain what this picture shows.';
   if (!q) return;
+  manualScroll = false;
   busy = true;
   const sent = attach; curImg = sent; if (sent) clearAttach();
   const mine = add('me', q); txt.value = '';
