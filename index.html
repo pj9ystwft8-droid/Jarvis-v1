@@ -133,7 +133,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15aa</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15ad</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -162,7 +162,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="te">Voice engine</label><select id="te"><option value="auto">Auto, best voice: on-device, then Gemini, then device</option><option value="fast">Auto, fastest start: Gemini, then on-device, then device</option><option value="kokoro">Natural on-device only (no limit)</option><option value="gemini">Gemini voice only (has a daily limit)</option><option value="device">Device: Daniel (instant, robotic)</option></select>
   <label for="sp">Speaking speed</label><select id="sp"><option value="1">Normal</option><option value="1.08">A little faster</option><option value="1.15">Faster</option></select>
   <label for="kv">On-device voice</label><select id="kv"><option value="bm_daniel">Daniel (British)</option><option value="bm_george">George (British)</option><option value="bm_lewis">Lewis (British)</option><option value="bm_fable">Fable (British)</option></select>
-  <div class="row"><button id="kdlb">Download natural voice</button></div><div id="kst" style="color:var(--dim);font-size:12px;margin:2px 0 8px"></div>
+  <div class="row"><button id="kdlb">Download natural voice</button> <button id="kturbo">Turbo voice (GPU, 330 MB)</button></div><div id="kst" style="color:var(--dim);font-size:12px;margin:2px 0 8px"></div>
   <label for="tv">Gemini voice</label><select id="tv"><option>Charon</option><option>Orus</option><option>Iapetus</option><option>Alnilam</option><option>Schedar</option><option>Sadaltager</option><option>Puck</option></select>
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
@@ -470,20 +470,64 @@ async function geminiTTS(text){
 }
 /* ---------- Kokoro: free on-device natural voice (no quota) ---------- */
 let kTTS = null, kLoading = null, kChain = Promise.resolve(), kRTF = 0;
+/* Kokoro runs in a background thread so the page never freezes while he is preparing speech */
+const K_WORKER_SRC = `let tts;
+self.onmessage = async e => { const m = e.data;
+  try {
+    if (m.t === 'load'){
+      let mod; try { mod = await import(m.u1); } catch(_){ mod = await import(m.u2); }
+      const pg = p => self.postMessage({ t:'prog', p:{ file:p.file, loaded:p.loaded, total:p.total } });
+      let gpu = false;
+      if (m.gpu && self.navigator && self.navigator.gpu){
+        try { tts = await mod.KokoroTTS.from_pretrained(m.model, { dtype:'fp32', device:'webgpu', progress_callback: pg }); await tts.generate('Hi.', { voice:'bm_daniel' }); gpu = true; } catch(_){ tts = null; }
+      }
+      if (!tts) tts = await mod.KokoroTTS.from_pretrained(m.model, { dtype:'q8', device:'wasm', progress_callback: pg });
+      self.postMessage({ t:'ready', id:m.id, gpu });
+    } else if (m.t === 'gen'){
+      const a = await tts.generate(m.text, { voice:m.voice, speed:m.speed }), f = new Float32Array(a.audio || a.data);
+      self.postMessage({ t:'audio', id:m.id, audio:f, sr:a.sampling_rate || 24000 }, [f.buffer]);
+    }
+  } catch(err){ self.postMessage({ t:'err', id:m.id, e:String(err && err.message || err) }); }
+};`;
+function kWorkerLoad(prog, gpu){
+  return new Promise((resolve, reject) => {
+    const w = new Worker(URL.createObjectURL(new Blob([K_WORKER_SRC], { type:'text/javascript' })), { type:'module' });
+    const pend = {}; let n = 0, ok = false;
+    const timer = setTimeout(() => { if (!ok){ try { w.terminate(); } catch(_){} reject(new Error('worker timeout')); } }, 600000);
+    w.onerror = ev => { if (!ok){ clearTimeout(timer); try { w.terminate(); } catch(_){} reject(new Error('worker failed')); } };
+    w.onmessage = e => { const m = e.data;
+      if (m.t === 'prog') return prog(m.p);
+      const q = pend[m.id]; if (!q) return; delete pend[m.id];
+      if (m.t === 'err') q.rej(new Error(m.e)); else q.res(m);
+    };
+    const call = (msg) => new Promise((res, rej) => { const id = ++n; pend[id] = { res, rej }; w.postMessage(Object.assign({ id }, msg)); });
+    call({ t:'load', u1:'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm', u2:'https://esm.sh/kokoro-js@1.2.1', model:'onnx-community/Kokoro-82M-v1.0-ONNX', gpu }).then(rm => {
+      ok = true; clearTimeout(timer);
+      resolve({ gpu: !!rm.gpu, generate: async (text, o) => { const m = await call({ t:'gen', text, voice:o.voice, speed:o.speed }); return { audio:m.audio, sampling_rate:m.sr }; } });
+    }, err => { clearTimeout(timer); try { w.terminate(); } catch(_){} reject(err); });
+  });
+}
 async function kLoad(onProg){
   if (kTTS) return kTTS;
   if (kLoading) return kLoading;
   const imp = window._kImport || (u => import(u));
   kLoading = (async () => {
-    let mod;
-    try { mod = await imp('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm'); } catch(e){ mod = await imp('https://esm.sh/kokoro-js@1.2.1'); }
     const files = {};
-    const tts = await mod.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype:'q8', device:'wasm', progress_callback: pr => {
+    const prog = pr => {
       if (!onProg || !pr) return;
       if (pr.file && pr.total) files[pr.file] = { l: pr.loaded || 0, t: pr.total };
       let L = 0, T = 0; Object.values(files).forEach(f => { L += f.l; T += f.t; });
       if (T) onProg(Math.min(99, Math.round(L / T * 100)), Math.round(T / 1048576));
-    } });
+    };
+    let tts = null;
+    if (!window._kImport && window.Worker){
+      try { tts = await kWorkerLoad(prog, store.get('kgpu', '') === '1'); if (store.get('kgpu', '') === '1' && !tts.gpu) store.set('kgpu', 'fail'); } catch(e){ tts = null; }
+    }
+    if (!tts){
+      let mod;
+      try { mod = await imp('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm'); } catch(e){ mod = await imp('https://esm.sh/kokoro-js@1.2.1'); }
+      tts = await mod.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype:'q8', device:'wasm', progress_callback: prog });
+    }
     kTTS = tts; store.set('kdl', '1');
     kChain = kChain.then(async () => {
       try {
@@ -491,7 +535,7 @@ async function kLoad(onProg){
         const f = a.audio || a.data; kRTF = ((performance.now() - t0) / 1000) / (f.length / (a.sampling_rate || 24000)); kStatus();
       } catch(_){}
     });
-    kFillLoad(); if (!kFill.length) setTimeout(kFillMake, 2500);
+    kFillLoad(); if (!kFill.length) setTimeout(kFillMake, 800);
     return tts;
   })();
   try { return await kLoading; } finally { kLoading = null; }
@@ -502,11 +546,11 @@ function kFillLoad(){
   try { const o = JSON.parse(store.get('kfill', '') || 'null'); if (o && o.v === store.get('kv', 'bm_daniel') && o.s === String(spd()) && o.items) kFill = o.items.map(b => URL.createObjectURL(new Blob([b64u8(b)], { type:'audio/wav' }))); } catch(_){}
 }
 async function kFillMake(){
-  if (kFillBusy || kFill.length || !kTTS) return; kFillBusy = true;
+  if (kFillBusy || kFill.length || !kTTS) return; kFillBusy = true; kStatus();
   const items = [];
   try {
     for (const ph of ['Certainly, sir.', 'One moment, sir.', 'Right away, sir.']){
-      while (spBusy || spq.length || busy) await new Promise(r => setTimeout(r, 4000));
+      while (spBusy || spq.length) await new Promise(r => setTimeout(r, 1500));
       const job = kChain.then(() => kTTS.generate(ph, { voice: store.get('kv', 'bm_daniel'), speed: spd() }));
       kChain = job.catch(() => {});
       const a = await job, f = a.audio || a.data, i16 = new Int16Array(f.length);
@@ -517,7 +561,7 @@ async function kFillMake(){
     }
     store.set('kfill', JSON.stringify({ v: store.get('kv', 'bm_daniel'), s: String(spd()), items }));
     kFillLoad();
-  } catch(_){} finally { kFillBusy = false; }
+  } catch(e){ window._kFillErr = String((e && e.message) || e).slice(0, 60); } finally { kFillBusy = false; kStatus(); if (!kFill.length && kTTS) setTimeout(kFillMake, 15000); }
 }
 function kokoroTTS(text){
   const run = kChain.then(async () => {
@@ -547,8 +591,29 @@ async function fetchTTS(text){
 }
 function kStatus(){
   const el = $('kst'); if (!el) return;
-  el.textContent = store.get('kdl', '') === '1' ? 'On-device natural voice: downloaded and ready.' + (kRTF ? ' Speed on this phone: ' + (1 / kRTF).toFixed(1) + 'x real time' + (kRTF > 1 ? ' (slower than speech, so expect a delay).' : '.') : '') : 'On-device natural voice: not downloaded (about 90 MB, one time).';
+  el.textContent = store.get('kdl', '') === '1' ? 'On-device natural voice: downloaded and ready' + (store.get('kgpu', '') === '1' ? ' (Turbo, GPU).' : '.') + (kRTF ? ' Speed on this phone: ' + (1 / kRTF).toFixed(1) + 'x real time' + (kRTF > 1 ? ' (slower than speech, so expect a delay).' : '.') : '') + ' Quick-reply phrases: ' + (kFill.length ? 'ready.' : kFillBusy ? 'being prepared…' : 'not ready yet' + (window._kFillErr ? ' (' + window._kFillErr + ')' : '.')) : 'On-device natural voice: not downloaded (about 90 MB, one time).';
   const b = $('kdlb'); if (b) b.textContent = store.get('kdl', '') === '1' ? 'Test natural voice' : 'Download natural voice';
+}
+function kTurboPrompt(){
+  if (!navigator.gpu || store.get('kgpu', '') !== '' || store.get('kdl', '') !== '1') return;
+  const d = add('sys', '');
+  const t = document.createElement('div'); t.textContent = 'Sir, your phone can run the voice on its graphics chip, which is far faster and removes most of the pause before I speak. It needs a one-time download of about 330 MB (Wi-Fi recommended). Install the Turbo voice?';
+  const row = document.createElement('div'); row.className = 'kbtns';
+  const yes = document.createElement('button'), no = document.createElement('button');
+  yes.textContent = 'Install Turbo voice'; no.textContent = 'Not now';
+  row.appendChild(yes); row.appendChild(no); d.appendChild(t); d.appendChild(row); log.scrollTop = log.scrollHeight;
+  no.onclick = () => { store.set('kgpu', 'no'); row.remove(); t.textContent = 'Very well, sir. It is available in Settings whenever you wish.'; };
+  yes.onclick = () => kTurboInstall(t, row);
+}
+async function kTurboInstall(t, row){
+  if (row) row.remove(); t.textContent = 'Downloading the Turbo voice, sir… 0%';
+  store.set('kgpu', '1'); store.set('kfill', ''); kTTS = null; kRTF = 0; kFill = [];
+  try {
+    await kLoad((pc, mb) => { t.textContent = 'Downloading the Turbo voice, sir… ' + pc + '%' + (mb ? ' of ' + mb + ' MB' : ''); });
+    if (store.get('kgpu', '') === '1'){ window._kFail = 0; t.textContent = 'The Turbo voice is installed, sir.'; say('The Turbo voice is installed. How do I sound, sir?'); }
+    else t.textContent = 'This phone would not run the GPU voice, sir. I have kept the standard natural voice.';
+  } catch(e){ store.set('kgpu', 'fail'); t.textContent = 'I could not install the Turbo voice (' + String((e && e.message) || e).slice(0, 80) + ').'; }
+  kStatus();
 }
 function kPrompt(force){
   if (store.get('kdl', '') === '1'){ say('The natural voice is installed, sir. How do I sound?'); return; }
@@ -615,7 +680,7 @@ async function npump(){
   try {
     const el = $('tts');
     if (ngrp === 1 && kfillOK()){
-      const st = await Promise.race([G.p.then(() => 1, () => 1), new Promise(r => setTimeout(() => r(0), 350))]);
+      const st = await Promise.race([G.p.then(() => 1, () => 1), new Promise(r => setTimeout(() => r(0), 250))]);
       if (!st && grp[0].id === sayId){
         el.src = kFill[Math.floor(Math.random() * kFill.length)]; el.playbackRate = 1;
         document.body.classList.add('talk');
@@ -1683,6 +1748,7 @@ async function diag(){
 $('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
   { const tm = store.get('tts','auto'); $('te').value = tm === 'neural' ? 'auto' : tm; } $('kv').value = store.get('kv','bm_daniel'); $('sp').value = store.get('sp','1.08'); kStatus(); $('tv').value = store.get('ttsv','Charon'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
+$('kturbo').onclick = () => { dlg.close(); const d = add('sys', ''), t = document.createElement('div'); d.appendChild(t); if (!navigator.gpu){ t.textContent = 'This browser does not offer GPU access, sir, so the Turbo voice is unavailable.'; return; } kTurboInstall(t, null); };
 $('kdlb').onclick = () => { store.set('kv', $('kv').value); if (store.get('kdl', '') !== '1') store.set('kdl', ''); dlg.close(); kPrompt(true); };
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
@@ -1870,7 +1936,7 @@ add('ai', greeting() + ', sir. Jarvis is online.');
 setTimeout(() => {
   const m = ttsMode();
   if (m === 'device' || m === 'gemini') return;
-  if (store.get('kdl', '') === '1') kLoad().catch(() => { window._kFail = Date.now() + 600000; });
+  if (store.get('kdl', '') === '1'){ kLoad().catch(() => { window._kFail = Date.now() + 600000; }); setTimeout(kTurboPrompt, 4000); }
   else if (store.get('kdl', '') === '' && store.get('gk', '')) kPrompt();
 }, 2500);
 </script>
