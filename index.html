@@ -125,7 +125,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK I</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15k</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -137,7 +137,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 </div>
 
 <dialog id="dlg">
-  <strong>Settings</strong> <span style="color:var(--dim);font-size:12px">build 15 Nov · h</span>
+  <strong>Settings</strong>
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
@@ -327,34 +327,45 @@ function wakeHint(){
   d.appendChild(b);
 }
 function done(id){ if (id !== sayId) return; document.body.classList.remove('talk'); busy = false; if (live && !rec){ listen(); setTimeout(meterOn, 400); } }
-function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
+function speechStart(){ sayId++; pend = 0; fin = false; ttsEnd = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
+const spq = []; let spBusy = false, curIt = null;
+function spPump(){
+  if (spBusy) return;
+  let it = spq.shift();
+  while (it && it.id !== sayId) it = spq.shift();
+  if (!it) return;
+  spBusy = true; curIt = it;
+  let started = false, ended = false, resc = 0;
+  const next = () => { if (ended) return; ended = true; clearTimeout(wd); if (curIt === it){ spBusy = false; curIt = null; } it.finish(); if (curIt === null) spPump(); };
+  const wd = setTimeout(next, it.text.length * 110 + 6000);
+  it.u.onstart = () => { started = true; ttsConfirmed = true; };
+  it.u.onend = next;
+  it.u.onerror = () => { if (Date.now() - resc < 500) return; next(); };
+  document.body.classList.add('talk');
+  try { speechSynthesis.resume(); } catch(_){}
+  speechSynthesis.speak(it.u);
+  setTimeout(() => {
+    if (started || ended || it.id !== sayId) return;
+    try { resc = Date.now(); speechSynthesis.cancel(); speechSynthesis.resume(); speechSynthesis.speak(it.u); } catch(_){}
+    setTimeout(() => { if (!started && !ended && it.id === sayId) wakeHint(); }, 1500);
+  }, 1200);
+}
 function speechChunk(text, id){
   text = text.trim();
   if (!text || !window.speechSynthesis || id !== sayId) return;
   if (text.length > 380){ let i = text.lastIndexOf(', ', 380); if (i < 150) i = text.lastIndexOf(' ', 380); if (i < 1) i = 380; speechChunk(text.slice(0, i), id); speechChunk(text.slice(i), id); return; }
-  const u = new SpeechSynthesisUtterance(text.slice(0, 400));
+  const u = new SpeechSynthesisUtterance(text);
   u.lang = 'en-GB'; u.rate = 1.05;
   let v = pickVoice();
   if (!v && window.speechSynthesis) { try { speechSynthesis.getVoices(); v = pickVoice(); } catch(_){} }
   if (v){ u.voice = v; u.lang = v.lang; }
   pend++;
-  const startAt = Math.max(Date.now(), ttsEnd); ttsEnd = startAt + text.length * 85 + 800;
   let fired = false;
-  const finish = () => { if (fired || id !== sayId) return; fired = true; clearTimeout(to); pend--; if (pend <= 0 && fin) done(id); };
-  const to = setTimeout(finish, ttsEnd - Date.now() + 2500);
-  let started = false;
-  u.onstart = () => { started = true; ttsConfirmed = true; };
-  u.onend = u.onerror = finish;
-  document.body.classList.add('talk');
-  try { speechSynthesis.resume(); } catch(_){}
-  speechSynthesis.speak(u);
-  setTimeout(() => {
-    if (started || fired || id !== sayId) return;
-    try { speechSynthesis.cancel(); speechSynthesis.resume(); speechSynthesis.speak(u); } catch(_){}
-    setTimeout(() => { if (!started && !fired && id === sayId) wakeHint(); }, 1500);
-  }, 1200);
+  const finish = () => { if (fired || id !== sayId) return; fired = true; pend--; if (pend <= 0 && fin) done(id); };
+  spq.push({ u, text, id, finish });
+  spPump();
 }
-setInterval(() => { try { if (window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch(e){} }, 10000);
+setInterval(() => { try { if (!IOS && window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch(e){} }, 10000);
 function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) done(id); }
 function say(text){ const id = speechStart(); speechChunk(cleanSpeech(text), id); speechEnd(id); }
 
