@@ -23,11 +23,11 @@ header button{background:none;border:1px solid var(--line);color:var(--dim);bord
 .ttl{display:flex;align-items:center;gap:8px}
 .mk{font:700 10px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.14em;color:var(--arc);border:1px solid rgba(111,211,255,.55);border-radius:4px;padding:3px 5px 3px 7px;opacity:.85}
 .by{font:500 11px/1 Rajdhani,"Arial Narrow",sans-serif;letter-spacing:.08em;color:var(--dim);opacity:.45;white-space:normal;line-height:1.25}
-#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%)}
-.msg{max-width:86%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
+#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%)}
+.msg{max-width:94%;padding:14px 16px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
 .msg .body{white-space:normal}
 .me{align-self:flex-end;background:rgba(28,51,69,.9)}
-.ai{align-self:flex-start;background:rgba(14,27,39,.88);border:1px solid var(--line)}
+.ai{line-height:1.72;font-size:16.5px;align-self:flex-start;background:rgba(14,27,39,.88);border:1px solid var(--line)}
 .src{display:block;color:var(--arc);font-size:13px;margin-top:6px;line-height:1.9}
 .src a{color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:2px 0}
 .sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
@@ -76,17 +76,26 @@ header,#log,#bar{position:relative;z-index:1}
 #simple{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 10px;font-size:13px;flex:none}
 #simple.on{border-color:var(--arc);color:var(--arc)}
 body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
-.body .p{margin:0 0 10px}
+.body .p{margin:0 0 18px}
 .body .p:last-child{margin-bottom:0}
-.body .li{display:flex;gap:10px;margin:0 0 14px;align-items:flex-start}
+.body .li{display:flex;gap:12px;margin:0 0 20px;align-items:flex-start}
 .body .li:last-child{margin-bottom:0}
 .body .li .n{color:var(--arc);font-weight:600;flex:none;min-width:1.7em}
 .body .li .t{flex:1;min-width:0}
 .body .li b{font-weight:600;color:#fff}
 .body .li .t .il{display:block;margin-top:6px;font-size:13px;color:var(--arc);text-decoration:underline;text-underline-offset:3px;word-break:break-word;padding:3px 0}
-.srcs{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
+.srcs{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);font-size:13px}
 .srcs .h{color:var(--dim);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
 .srcs a{display:block;color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:6px 0;word-break:break-word}
+#log > :first-child{margin-top:auto}
+.status{align-self:flex-start;display:flex;align-items:center;gap:10px;color:var(--dim);font-size:14px;padding:2px 6px}
+.status i{width:9px;height:9px;border-radius:50%;background:var(--arc);animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25;transform:scale(.7)}}
+@media (prefers-reduced-motion:reduce){.status i{animation:none}}
+.body b{font-weight:650;color:#fff}
+.body a.map{color:var(--arc);text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.srcs .tg{background:none;border:1px solid var(--line);color:var(--arc);border-radius:14px;padding:6px 12px;font-size:13px}
+.srcs div a{display:block;color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:7px 0;word-break:break-word;font-size:14px}
 </style>
 </head>
 <body>
@@ -114,6 +123,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="ik">Google Images key (optional)</label><input id="ik" type="password" autocomplete="off">
   <label for="ic">Google search engine ID (optional)</label><input id="ic" autocomplete="off">
   <label for="mem">Memory (one fact per line)</label><textarea id="mem" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:15px"></textarea>
+  <label for="rd">Reading aloud</label><select id="rd"><option value="short">Short: the first part only</option><option value="full">Full answer</option></select>
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="vc">Voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
@@ -132,20 +142,38 @@ const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (
 let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
 function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
 
+function inline(parent, str){
+  if ((str.match(/\*\*/g) || []).length % 2) str = str.replace(/\*\*(?!.*\*\*)/, '');
+  const ob = str.lastIndexOf('[['); if (ob > str.lastIndexOf(']]')) str = str.slice(0, ob);
+  const re = /\*\*([^*]+?)\*\*|\[\[([^\]]+?)\]\]/g;
+  let last = 0, m;
+  while ((m = re.exec(str))){
+    if (m.index > last) parent.appendChild(document.createTextNode(str.slice(last, m.index)));
+    if (m[1] !== undefined){ const b = document.createElement('b'); inline(b, m[1]); parent.appendChild(b); }
+    else {
+      const a = document.createElement('a'); a.className = 'map';
+      a.href = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(m[2]);
+      a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '\u{1F4CD} ' + m[2];
+      parent.appendChild(a);
+    }
+    last = re.lastIndex;
+  }
+  if (last < str.length) parent.appendChild(document.createTextNode(str.slice(last)));
+}
 function renderText(box, text, linksFn){
   box.textContent = '';
   let pos = 0, linked = 0;
   String(text).split('\n').forEach(raw => {
     const a = pos, b = pos + raw.length; pos = b + 1;
-    const line = raw.replace(/\*\*/g, '').replace(/^\s*#+\s*/, '').trim(); if (!line) return;
+    const line = raw.replace(/^\s*#+\s*/, '').trim(); if (!line) return;
     const m = line.match(/^(\d+[.)]|[-\u2022*])\s+(.*)$/);
     if (m){
       const row = document.createElement('div'); row.className = 'li';
       const n = document.createElement('span'); n.className = 'n'; n.textContent = /^\d/.test(m[1]) ? m[1] : '\u2022';
       const t = document.createElement('span'); t.className = 't';
-      const c = m[2].search(/:\s/);
-      if (c > 0 && c < 70){ const bd = document.createElement('b'); bd.textContent = m[2].slice(0, c + 1); t.appendChild(bd); t.appendChild(document.createTextNode(' ' + m[2].slice(c + 2))); }
-      else t.textContent = m[2];
+      let content = m[2];
+      if (!/\*\*/.test(content)){ const c = content.search(/:\s/); if (c > 0 && c < 70) content = '**' + content.slice(0, c + 1) + '**' + content.slice(c + 1); }
+      inline(t, content);
       if (linksFn){
         const ls = linksFn(a, b);
         ls.forEach(x => { const l = document.createElement('a'); l.className = 'il'; l.href = x.u; l.target = '_blank'; l.rel = 'noopener noreferrer'; l.textContent = '\u2197 ' + x.t; t.appendChild(l); });
@@ -153,7 +181,7 @@ function renderText(box, text, linksFn){
       }
       row.appendChild(n); row.appendChild(t); box.appendChild(row);
     } else {
-      const p = document.createElement('div'); p.className = 'p'; p.textContent = line; box.appendChild(p);
+      const p = document.createElement('div'); p.className = 'p'; inline(p, line); box.appendChild(p);
     }
   });
   return linked;
@@ -248,10 +276,10 @@ function speechChunk(text, id){
 }
 setInterval(() => { try { if (window.speechSynthesis && speechSynthesis.speaking && !speechSynthesis.paused) { speechSynthesis.pause(); speechSynthesis.resume(); } } catch(e){} }, 10000);
 function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) done(id); }
-function say(text){ const id = speechStart(); speechChunk(text.replace(/[*_#`]/g, ''), id); speechEnd(id); }
+function say(text){ const id = speechStart(); speechChunk(cleanSpeech(text), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const BASE_SYSTEM = 'You are Jarvis, a refined, concise personal assistant. Address the user as "sir". Reply in English, in at most three short sentences, except when a list is requested (see the list rule below). Plain text only: no markdown symbols such as asterisks or hashes. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: for any real question, answer thoroughly in the style of a top AI assistant. Begin with the direct answer in one or two sentences, then explain in two to four short paragraphs covering the key facts, the context, the reasons, and any useful details or next steps. Put a blank line between paragraphs. Wrap the few most important words or phrases of each paragraph in double asterisks, like **this**, so the key points stand out. Do not use hashes or other markdown. Keep greetings, thanks and very simple facts such as the time brief. Never say you cannot provide links or sources: the app automatically shows source links with your answer, so if the user asks for a link or source, say the sources are listed with the answer. PLACES: whenever you name a specific real place such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
 
 
 /* ---------- Clock, memory ---------- */
@@ -302,7 +330,7 @@ function gBody(q, model, extra, useTools){
   const tools = [];
   if (useTools !== false) tools.push({ google_search:{} });
   if (urlIn(q).length) tools.push({ url_context:{} });
-  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, isList(q) ? 2000 : 500) };
+  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, isList(q) ? 3000 : 1500) };
   if (tools.length) body.tools = tools;
   return JSON.stringify(body);
 }
@@ -316,6 +344,9 @@ async function askGemini(q, extra){
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini error');
   return j.candidates[0].content.parts.map(p => p.text || '').join('');
 }
+const wantsLinks = q => /\b(links?|sources?|websites?|urls?|references?|cite|citations?|where did you (?:get|find|read))\b/i.test(q);
+const isPlaceQ = q => /\b(near me|nearby|restaurants?|cafes?|coffee shops?|hotels?|where is|directions?|how (?:do i|to) get to|route to|open now|bars?|malls?|hospitals?|pharmacy|gas station|places to)\b/i.test(q);
+function status(label){ const d = document.createElement('div'); d.className = 'status'; const i = document.createElement('i'); const t = document.createElement('span'); t.textContent = label; d.appendChild(i); d.appendChild(t); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
 let searchedFlag = false, siteList = [], gChunks = [], gSupports = [];
 const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
 async function streamGemini(q, cb, model, extra, useTools, plain){
@@ -382,7 +413,7 @@ async function referee(q, a, b){
   } catch(e){ return 'A'; }
 }
 
-function cleanSpeech(t){ return t.replace(/[*_#`]/g, ''); }
+function cleanSpeech(t){ return t.replace(/\[\[|\]\]/g, '').replace(/[*_#`]/g, ''); }
 function renewText(){
   const now = new Date();
   const la = new Date(now.toLocaleString('en-US', { timeZone:'America/Los_Angeles' }));
@@ -415,15 +446,22 @@ function listSpeech(t){
   return intro + ' ' + top + (items.length > 3 ? '. The full list of ' + items.length + ' is on your screen, sir.' : '.');
 }
 async function thinkStream(q, extra){
-  const c = cfg(), wait = add('sys', needsWeb(q) ? 'Searching Google…' : 'Thinking…'), id = speechStart();
-  let el = null, body = null, full = '', spoken = 0;
-  const listMode = isList(q);
+  const c = cfg(), wait = status(needsWeb(q) ? 'Searching the web…' : 'Thinking…'), id = speechStart();
+  let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false;
+  const listMode = isList(q), readAll = store.get('read', 'short') === 'full', LIM = 420;
+  const speakPart = t => {
+    t.split(/(?<=[.!?])\s+|\n+/).forEach(sn => {
+      if (!sn.trim()) return;
+      if (!readAll && spokenChars >= LIM){ cut = true; return; }
+      spokenChars += sn.length; speechChunk(cleanSpeech(sn), id);
+    });
+  };
   const flush = final => {
     if (listMode) return;
     const rest = full.slice(spoken);
-    if (final){ if (rest.trim()) speechChunk(cleanSpeech(rest), id); spoken = full.length; return; }
+    if (final){ speakPart(rest); spoken = full.length; return; }
     const m = rest.match(/^[\s\S]*[.!?](?=\s)/);
-    if (m){ spoken += m[0].length; speechChunk(cleanSpeech(m[0]), id); }
+    if (m){ spoken += m[0].length; speakPart(m[0]); }
   };
   const onText = all => {
     if (!el){ wait.remove(); el = add('ai', '', 'Gemini'); body = document.createElement('div'); body.className = 'body'; el.insertBefore(body, el.firstChild); }
@@ -439,21 +477,24 @@ async function thinkStream(q, extra){
     }
     if (lastErr) throw lastErr;
     if (!full.trim()) throw new Error('No answer came back. Please try again.');
-    if (listMode) speechChunk(cleanSpeech(listSpeech(full)), id); else flush(true);
+    if (listMode) speechChunk(cleanSpeech(listSpeech(full)), id); else { flush(true); if (cut) speechChunk('The rest of the answer is on your screen, sir.', id); }
     speechEnd(id);
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
     let perItem = 0;
-    if (searchedFlag && el && body && gSupports.length) perItem = renderText(body, full, itemLinks(full));
-    if (searchedFlag && el && !perItem){
-      let n;
-      if (siteList.length){
-        n = document.createElement('div'); n.className = 'srcs';
-        const h = document.createElement('div'); h.className = 'h'; h.textContent = 'Sources'; n.appendChild(h);
-        siteList.slice(0, 6).forEach(x => {
-          const a = document.createElement('a'); a.href = x.u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = x.t; n.appendChild(a);
-        });
-      } else { n = document.createElement('span'); n.className = 'src'; n.textContent = 'Searched the web'; }
-      el.appendChild(n);
+    if (searchedFlag && el && body && listMode && gSupports.length) perItem = renderText(body, full, itemLinks(full));
+    if (searchedFlag && el && !perItem && siteList.length){
+      const n = document.createElement('div'); n.className = 'srcs';
+      const tg = document.createElement('button'); tg.className = 'tg';
+      const lst = document.createElement('div');
+      siteList.slice(0, 6).forEach(x => { const a = document.createElement('a'); a.href = x.u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = x.t; lst.appendChild(a); });
+      let open = listMode || wantsLinks(q);
+      const paint = () => { lst.style.display = open ? 'block' : 'none'; tg.textContent = 'Sources (' + Math.min(siteList.length, 6) + ') ' + (open ? '\u25B4' : '\u25BE'); };
+      tg.onclick = () => { open = !open; paint(); }; paint();
+      n.appendChild(tg); n.appendChild(lst); el.appendChild(n);
+    }
+    if (el && isPlaceQ(q) && !/\[\[/.test(full)){
+      const g = document.createElement('a'); g.className = 'gimg'; g.target = '_blank'; g.rel = 'noopener noreferrer';
+      g.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(picTopic(q)); g.textContent = '\u{1F4CD} Open in Google Maps'; el.appendChild(g);
     }
     const prior = history.slice();
     history.push({ role:'user', text:q }, { role:'ai', text:full });
@@ -463,7 +504,7 @@ async function thinkStream(q, extra){
       b.className = 'alt'; b.textContent = 'Not convinced';
       b.onclick = async () => {
         b.remove();
-        const w = add('sys', 'Asking ChatGPT…');
+        const w = status('Asking ChatGPT…');
         try { const a = await askOpenAI(q, prior, extra); w.remove(); add('ai', a, 'ChatGPT'); say(a); }
         catch(e){ w.remove(); add('ai', 'My apologies, sir. ' + e.message); }
       };
@@ -544,17 +585,32 @@ const isWeather = q => /\b(weather|forecast|temperature|rain|raining|umbrella|sn
 
 
 /* ---------- Pictures: Wikimedia Commons first, then Google Images ---------- */
-const wantsPics = q => /\b(pictures?|photos?|images?|pics?|show me|what does .+ look like|look like)\b/i.test(q);
+const wantsPics = q => /\b(pictures?|photos?|images?|pics?|looks? like)\b/i.test(q) && !isList(q);
 function picTopic(q){
   let t = q.replace(/\b(please|can you|could you|jarvis|show me|show|give me|find|search for|search|look up|pictures?|photos?|images?|pics?|of|about|for|what does|look like|looks like|a|an|the|some)\b/ig, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim();
   return t || q;
 }
+const fileBase = u => { const m = String(u).match(/\/([^\/]+\.(?:jpe?g|png|webp))(?:\/|$)/i); return m ? decodeURIComponent(m[1]).toLowerCase() : u; };
 async function wikiPics(topic){
-  const u = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=12&gsrsearch=' + encodeURIComponent(topic + ' filetype:bitmap') + '&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=640';
-  const j = await (await fetch(u)).json();
-  const pages = j.query ? Object.values(j.query.pages) : [];
-  return pages.map(p => p.imageinfo && p.imageinfo[0]).filter(i => i && i.thumburl && /\.(jpe?g|png|webp)/i.test(i.url))
-    .map(i => ({ src:i.thumburl, full:i.url, credit:(i.extmetadata && i.extmetadata.Artist ? i.extmetadata.Artist.value.replace(/<[^>]+>/g, '') : 'Wikimedia Commons').slice(0, 60), page:i.descriptionurl })).slice(0, 4);
+  const api = 'https://en.wikipedia.org/w/api.php?format=json&origin=*&action=query&';
+  const sj = await (await fetch(api + 'list=search&srlimit=4&srsearch=' + encodeURIComponent(topic))).json();
+  const hits = (sj.query && sj.query.search) || [];
+  const words = topic.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const hit = hits.find(h => words.some(w => h.title.toLowerCase().includes(w)));
+  if (!hit) return [];
+  const pj = await (await fetch(api + 'prop=pageimages|images&piprop=thumbnail&pithumbsize=700&imlimit=40&titles=' + encodeURIComponent(hit.title))).json();
+  const page = Object.values((pj.query && pj.query.pages) || {})[0] || {};
+  const out = [], seen = new Set(), credit = 'Wikipedia: ' + hit.title;
+  if (page.thumbnail){ out.push({ src:page.thumbnail.source, full:page.thumbnail.source, credit }); seen.add(fileBase(page.thumbnail.source)); }
+  const files = (page.images || []).map(i => i.title).filter(t => /\.(jpe?g|png|webp)$/i.test(t) && !/(flag|logo|icon|symbol|map|locator|commons|ambox|edit|question|stub|portal|wiki|disambig|padlock|crystal|folder|signature|coat)/i.test(t)).slice(0, 10);
+  if (files.length){
+    const ij = await (await fetch(api + 'prop=imageinfo&iiprop=url&iiurlwidth=700&titles=' + encodeURIComponent(files.join('|')))).json();
+    Object.values((ij.query && ij.query.pages) || {}).forEach(pg => {
+      const ii = pg.imageinfo && pg.imageinfo[0];
+      if (ii && ii.thumburl && !seen.has(fileBase(ii.url))){ seen.add(fileBase(ii.url)); out.push({ src:ii.thumburl, full:ii.url, credit }); }
+    });
+  }
+  return out.slice(0, 4);
 }
 async function googlePics(topic){
   const k = store.get('ik',''), cx = store.get('ic','');
@@ -568,7 +624,7 @@ function showLB(it){
 $('lb').onclick = () => $('lb').classList.remove('open');
 async function addPics(el, topic){
   if (!el || !topic) return;
-  let items = [], from = 'Wikimedia Commons';
+  let items = [], from = 'Wikipedia';
   try { items = await wikiPics(topic); } catch(e){}
   if (items.length < 2){
     try { const g = await googlePics(topic); if (g.length){ items = g; from = 'Google Images'; } } catch(e){}
@@ -804,11 +860,11 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
