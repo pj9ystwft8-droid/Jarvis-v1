@@ -932,6 +932,13 @@ function listen(){
   if (!recMode()){ listenSR(); return; }
   listenRec();
 }
+let vstream = null;
+async function getMic(){
+  if (vstream && vstream.getAudioTracks().some(t => t.readyState === 'live')){ vstream.getAudioTracks().forEach(t => { t.enabled = true; }); return vstream; }
+  vstream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+  return vstream;
+}
+function micHold(on){ if (vstream) vstream.getAudioTracks().forEach(t => { t.enabled = !!on; }); }
 async function transcribeAudio(blob, mime){
   const c = cfg();
   const b64 = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result).split(',')[1]); f.onerror = no; f.readAsDataURL(blob); });
@@ -948,10 +955,10 @@ async function listenRec(){
   const h = { dead:false, abort(){ this.dead = true; try { this.stop && this.stop(); } catch(_){} } };
   rec = h;
   let stream = null, ctx = null, mr = null, poll = null;
-  const cleanup = () => { clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch(_){} try { if (ctx) ctx.close(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
+  const cleanup = () => { clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { micHold(false); } catch(_){} try { if (ctx) ctx.close(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
   const again = (ms) => { if (rec === h) rec = null; if (live && !busy) setTimeout(listen, ms || 200); };
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+    stream = await getMic();
   } catch(e){
     if (rec === h) rec = null;
     if (e && /NotAllowed|Permission/i.test(e.name + e.message)){ stopLive(); add('sys', 'Microphone access was denied, sir. Allow it in Safari settings.'); }
@@ -1005,7 +1012,7 @@ async function listenRec(){
   mr.start();
 }
 function stopLive(){
-  live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn);
+  live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn); micHold(false);
   $('mic').classList.remove('on'); document.body.classList.remove('live', 'talk');
   $('vm').classList.remove('open'); meterOff();
   const r = rec; rec = null; lastStop = Date.now();
