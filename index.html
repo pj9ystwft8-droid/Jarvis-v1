@@ -93,6 +93,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 @keyframes blink{50%{opacity:.25;transform:scale(.7)}}
 @media (prefers-reduced-motion:reduce){.status i{animation:none}}
 .body b{font-weight:650;color:#fff}
+.body a.lnk{color:var(--arc);text-decoration:underline;text-underline-offset:3px;word-break:break-all}
 .body a.map{color:var(--arc);text-decoration:underline;text-underline-offset:3px;font-weight:600}
 .srcs .tg{background:none;border:1px solid var(--line);color:var(--arc);border-radius:14px;padding:6px 12px;font-size:13px}
 .srcs div a{display:block;color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:7px 0;word-break:break-word;font-size:14px}
@@ -150,14 +151,29 @@ function followAnswer(el){
 let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
 function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
 
+function linkText(parent, str){
+  const re = /https?:\/\/[^\s)\]}>"']+/g;
+  let last = 0, m;
+  while ((m = re.exec(str))){
+    const url = m[0].replace(/[.,;:!?]+$/, '');
+    if (m.index > last) parent.appendChild(document.createTextNode(str.slice(last, m.index)));
+    const a = document.createElement('a'); a.className = 'lnk'; a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48) + (url.length > 56 ? '\u2026' : '');
+    parent.appendChild(a);
+    last = m.index + url.length; re.lastIndex = last;
+  }
+  if (last < str.length) parent.appendChild(document.createTextNode(str.slice(last)));
+}
 function inline(parent, str){
   if ((str.match(/\*\*/g) || []).length % 2) str = str.replace(/\*\*(?!.*\*\*)/, '');
   const ob = str.lastIndexOf('[['); if (ob > str.lastIndexOf(']]')) str = str.slice(0, ob);
-  const re = /\*\*([^*]+?)\*\*|\[\[([^\]]+?)\]\]/g;
+  str = str.replace(/\[[^\]\[]*\]\([^)]*$/, '');
+  const re = /\*\*([^*]+?)\*\*|\[\[([^\]]+?)\]\]|\[([^\]\[]+?)\]\((https?:\/\/[^\s)]+)\)/g;
   let last = 0, m;
   while ((m = re.exec(str))){
-    if (m.index > last) parent.appendChild(document.createTextNode(str.slice(last, m.index)));
+    if (m.index > last) linkText(parent, str.slice(last, m.index));
     if (m[1] !== undefined){ const b = document.createElement('b'); inline(b, m[1]); parent.appendChild(b); }
+    else if (m[3] !== undefined){ const a = document.createElement('a'); a.className = 'lnk'; a.href = m[4]; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = m[3]; parent.appendChild(a); }
     else {
       const a = document.createElement('a'); a.className = 'map';
       a.href = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(m[2]);
@@ -166,7 +182,7 @@ function inline(parent, str){
     }
     last = re.lastIndex;
   }
-  if (last < str.length) parent.appendChild(document.createTextNode(str.slice(last)));
+  if (last < str.length) linkText(parent, str.slice(last));
 }
 function renderText(box, text, linksFn){
   box.textContent = '';
@@ -288,7 +304,7 @@ function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) don
 function say(text){ const id = speechStart(); speechChunk(cleanSpeech(text), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: for any real question, answer thoroughly in the style of a top AI assistant. Begin with the direct answer in one or two sentences, then explain in two to four short paragraphs covering the key facts, the context, the reasons, and any useful details or next steps. Put a blank line between paragraphs. Wrap the few most important words or phrases of each paragraph in double asterisks, like **this**, so the key points stand out. Do not use hashes or other markdown. Keep greetings, thanks and very simple facts such as the time brief. Never say you cannot provide links or sources: the app automatically shows source links with your answer, so if the user asks for a link or source, say the sources are listed with the answer. PLACES: whenever you name a specific real place such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: for any real question, answer thoroughly in the style of a top AI assistant. Begin with the direct answer in one or two sentences, then explain in two to four short paragraphs covering the key facts, the context, the reasons, and any useful details or next steps. Put a blank line between paragraphs. Wrap the few most important words or phrases of each paragraph in double asterisks, like **this**, so the key points stand out. Do not use hashes or other markdown. Keep greetings, thanks and very simple facts such as the time brief. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific real place such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
 
 
 /* ---------- Clock, memory ---------- */
@@ -456,7 +472,7 @@ function listSpeech(t){
 }
 async function thinkStream(q, extra){
   const c = cfg(), wait = status(needsWeb(q) ? 'Searching the web…' : 'Thinking…'), id = speechStart();
-  let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false;
+  let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false;
   const listMode = isList(q), readAll = store.get('read', 'short') === 'full', LIM = 420;
   const speakPart = t => {
     t.split(/(?<=[.!?])\s+|\n+/).forEach(sn => {
@@ -481,7 +497,7 @@ async function thinkStream(q, extra){
     const tries = [[c.gm, true, false], [c.gm, false, false], [c.gm, false, true], [bk, false, true]];
     let lastErr = null;
     for (const [mdl, tl, pl] of tries){
-      try { searchedFlag = false; siteList = []; gChunks = []; gSupports = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; break; }
+      try { searchedFlag = false; siteList = []; gChunks = []; gSupports = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; toolsOk = tl; break; }
       catch (err){ lastErr = err; if (full || /API key|API_KEY/i.test(err.message || '')) break; }
     }
     if (lastErr) throw lastErr;
@@ -491,15 +507,18 @@ async function thinkStream(q, extra){
     if (picTopicNow && el){ addPics(el, picTopicNow); picTopicNow = ''; }
     let perItem = 0;
     if (searchedFlag && el && body && listMode && gSupports.length) perItem = renderText(body, full, itemLinks(full));
-    if (searchedFlag && el && !perItem && siteList.length){
+    if (el && !perItem && full.length > 120 && (siteList.length || needsWeb(q) || wantsLinks(q))){
       const n = document.createElement('div'); n.className = 'srcs';
-      const tg = document.createElement('button'); tg.className = 'tg';
-      const lst = document.createElement('div');
-      siteList.slice(0, 6).forEach(x => { const a = document.createElement('a'); a.href = x.u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = x.t; lst.appendChild(a); });
-      let open = listMode || wantsLinks(q);
-      const paint = () => { lst.style.display = open ? 'block' : 'none'; tg.textContent = 'Sources (' + Math.min(siteList.length, 6) + ') ' + (open ? '\u25B4' : '\u25BE'); };
-      tg.onclick = () => { open = !open; paint(); }; paint();
-      n.appendChild(tg); n.appendChild(lst); el.appendChild(n);
+      const h = document.createElement('div'); h.className = 'h';
+      const add1 = (label, url) => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label; n.appendChild(a); };
+      if (siteList.length){ h.textContent = 'Sources'; n.appendChild(h); siteList.slice(0, 6).forEach(x => add1(x.t, x.u)); }
+      else {
+        h.textContent = toolsOk ? 'Find it online' : 'Web search was unavailable for this answer'; n.appendChild(h);
+        const qq = encodeURIComponent(q.slice(0, 120));
+        add1('Search Google for this', 'https://www.google.com/search?q=' + qq);
+        add1('Look it up on Wikipedia', 'https://en.wikipedia.org/wiki/Special:Search?search=' + qq);
+      }
+      el.appendChild(n);
     }
     if (el && isPlaceQ(q) && !/\[\[/.test(full)){
       const g = document.createElement('a'); g.className = 'gimg'; g.target = '_blank'; g.rel = 'noopener noreferrer';
@@ -855,14 +874,19 @@ async function diag(){
   const steps = [
     ['1. Reach Google and check the key', () => fetch(base + 'models?pageSize=1&key=' + k)],
     ['2. Plain answer (' + c.gm + ')', post('models/' + m + ':generateContent?key=', {})],
-    ['3. Answer with Google Search', post('models/' + m + ':generateContent?key=', { tools:[{ google_search:{} }] })],
+    ['3. Google Search sources', async () => {
+      const r = await fetch(base + 'models/' + m + ':generateContent?key=' + k, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:'What is the latest news today? Answer in one sentence.' }] }], tools:[{ google_search:{} }] }) });
+      if (!r.ok) return r;
+      const j = await r.json(), gm = j.candidates && j.candidates[0] && j.candidates[0].groundingMetadata, n = gm && gm.groundingChunks ? gm.groundingChunks.length : 0;
+      return { ok:true, text: async () => '', note: n ? 'OK, ' + n + ' sources returned' : 'The answer worked, but Google returned NO sources. Web search is not active for this key or model.' };
+    }],
     ['4. Streaming answer', post('models/' + m + ':streamGenerateContent?alt=sse&key=', {})]
   ];
   const note = add('sys', 'Testing the connection…');
   for (const [name, fn] of steps){
     try {
       const r = await fn();
-      if (r.ok){ await r.text(); add('sys', name + ': OK'); }
+      if (r.ok){ await r.text(); add('sys', name + ': ' + (r.note || 'OK')); }
       else { let t = ''; try { t = (await r.json()).error.message; } catch(_){} add('sys', name + ': Google replied with an error. ' + t.slice(0, 160)); }
     } catch(e){ add('sys', name + ': blocked before reaching Google (' + (e.message || 'network') + ').'); }
   }
