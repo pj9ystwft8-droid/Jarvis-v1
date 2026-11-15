@@ -133,7 +133,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15z</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15aa</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -491,9 +491,33 @@ async function kLoad(onProg){
         const f = a.audio || a.data; kRTF = ((performance.now() - t0) / 1000) / (f.length / (a.sampling_rate || 24000)); kStatus();
       } catch(_){}
     });
+    kFillLoad(); if (!kFill.length) setTimeout(kFillMake, 2500);
     return tts;
   })();
   try { return await kLoading; } finally { kLoading = null; }
+}
+let kFill = [], kFillBusy = false, lastDur = 0;
+function kFillLoad(){
+  kFill = [];
+  try { const o = JSON.parse(store.get('kfill', '') || 'null'); if (o && o.v === store.get('kv', 'bm_daniel') && o.s === String(spd()) && o.items) kFill = o.items.map(b => URL.createObjectURL(new Blob([b64u8(b)], { type:'audio/wav' }))); } catch(_){}
+}
+async function kFillMake(){
+  if (kFillBusy || kFill.length || !kTTS) return; kFillBusy = true;
+  const items = [];
+  try {
+    for (const ph of ['Certainly, sir.', 'One moment, sir.', 'Right away, sir.']){
+      while (spBusy || spq.length || busy) await new Promise(r => setTimeout(r, 4000));
+      const job = kChain.then(() => kTTS.generate(ph, { voice: store.get('kv', 'bm_daniel'), speed: spd() }));
+      kChain = job.catch(() => {});
+      const a = await job, f = a.audio || a.data, i16 = new Int16Array(f.length);
+      for (let i = 0; i < f.length; i++) i16[i] = Math.max(-1, Math.min(1, f[i])) * 32767;
+      const wav = new Uint8Array(await pcmToWav(new Uint8Array(i16.buffer), a.sampling_rate || 24000).arrayBuffer());
+      let bin = ''; for (let i = 0; i < wav.length; i += 8192) bin += String.fromCharCode.apply(null, wav.subarray(i, i + 8192));
+      items.push(btoa(bin));
+    }
+    store.set('kfill', JSON.stringify({ v: store.get('kv', 'bm_daniel'), s: String(spd()), items }));
+    kFillLoad();
+  } catch(_){} finally { kFillBusy = false; }
 }
 function kokoroTTS(text){
   const run = kChain.then(async () => {
@@ -545,28 +569,31 @@ function kPrompt(force){
 }
 let nextG = null, ngrp = 0, nTimer = 0;
 function neuralStop(){
-  clearInterval(nTimer); nextG = null;
+  clearInterval(nTimer); nextG = null; lastDur = 0;
   try { const a = $('tts'); if (a){ a.onended = null; a.onerror = null; a.pause(); } } catch(_){}
 }
 function takeGroup(first){
   let it = spq.shift();
   while (it && it.id !== sayId) it = spq.shift();
   if (!it) return null;
-  if (first && it.text.length > 40){
-    const lim = (ttsMode() !== 'gemini' && kReady() && kRTF > 1) ? 32 : 56, mn = lim < 40 ? 12 : 18;
-    let i = it.text.lastIndexOf(', ', lim); if (i < mn) i = it.text.lastIndexOf(' ', lim);
-    if (i >= mn){
+  const kfirst = ttsMode() !== 'gemini' && ttsMode() !== 'fast' && kReady();
+  if (first && it.text.length > 30){
+    const lim = kfirst ? 24 : 56, mn = lim < 40 ? 10 : 18;
+    let i = it.text.lastIndexOf(', ', lim); if (i < mn) i = it.text.lastIndexOf(' ', lim); if (i < mn) i = it.text.indexOf(' ', mn);
+    if (i >= mn && i < it.text.length - 6){
       const head = { u: it.u, text: it.text.slice(0, i + 1).trim(), id: it.id, finish: () => {}, hl: it.hl, off: 0, orig: it };
       const tail = { u: it.u, text: it.text.slice(i + 1).trim(), id: it.id, finish: it.finish, hl: it.hl, off: i + 1, orig: it };
       if (tail.text){ spq.unshift(tail); it = head; }
     }
   }
+  const cap = (kfirst && !first && lastDur) ? Math.max(40, Math.min(600, lastDur * 13 / Math.max(kRTF, .6))) : 600;
   const grp = [it]; let len = it.text.length;
-  if (!first) while (spq.length && spq[0].id === sayId && len + spq[0].text.length <= 600){ const g = spq.shift(); grp.push(g); len += g.text.length + 1; }
+  if (!first) while (spq.length && spq[0].id === sayId && len + spq[0].text.length <= cap){ const g = spq.shift(); grp.push(g); len += g.text.length + 1; }
   const text = grp.map(g => g.text).join(' ');
   const p = fetchTTS(text); p.catch(() => {});
   return { grp, text, p };
 }
+const kfillOK = () => ttsMode() !== 'gemini' && ttsMode() !== 'fast' && kReady() && kFill.length > 0;
 async function npump(){
   if (spBusy) return;
   let G = nextG; nextG = null;
@@ -586,9 +613,18 @@ async function npump(){
     spPump();
   };
   try {
-    const au = await G.p;
-    if (grp[0].id !== sayId){ ended = true; if (curIt === token){ spBusy = false; curIt = null; } return; }
     const el = $('tts');
+    if (ngrp === 1 && kfillOK()){
+      const st = await Promise.race([G.p.then(() => 1, () => 1), new Promise(r => setTimeout(() => r(0), 350))]);
+      if (!st && grp[0].id === sayId){
+        el.src = kFill[Math.floor(Math.random() * kFill.length)]; el.playbackRate = 1;
+        document.body.classList.add('talk');
+        await new Promise(res => { el.onended = res; el.onerror = res; el.play().catch(res); });
+      }
+    }
+    const au = await G.p;
+    lastDur = (au.dur || 0) / (au.rate || 1);
+    if (grp[0].id !== sayId){ ended = true; if (curIt === token){ spBusy = false; curIt = null; } return; }
     el.onended = fin; el.onerror = () => fail(new Error('audio error'));
     el.src = au.url; el.defaultPlaybackRate = au.rate || 1; el.playbackRate = au.rate || 1;
     document.body.classList.add('talk');
@@ -1655,7 +1691,7 @@ function greeting(){
   return h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('tts', $('te').value); store.set('kv', $('kv').value); store.set('sp', $('sp').value); window._kFail = 0; store.set('ttsv', $('tv').value); window._ttsFail = 0; window._ttsWarned = false; if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('tts', $('te').value); store.set('kv', $('kv').value); store.set('sp', $('sp').value); window._kFail = 0; kFillLoad(); if (kTTS && !kFill.length) kFillMake(); store.set('ttsv', $('tv').value); window._ttsFail = 0; window._ttsWarned = false; if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
