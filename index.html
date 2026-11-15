@@ -133,7 +133,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15y</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15z</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -159,7 +159,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="rd">Reading aloud</label><select id="rd"><option value="short">Short: the first part only</option><option value="full">Full answer</option></select>
   <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="rl">Reply language</label><select id="rl"><option value="en">English (Daniel, default)</option></select>
-  <label for="te">Voice engine</label><select id="te"><option value="auto">Auto: natural on-device, then Gemini, then device</option><option value="kokoro">Natural on-device only (no limit)</option><option value="gemini">Gemini voice only (has a daily limit)</option><option value="device">Device: Daniel (instant, robotic)</option></select>
+  <label for="te">Voice engine</label><select id="te"><option value="auto">Auto, best voice: on-device, then Gemini, then device</option><option value="fast">Auto, fastest start: Gemini, then on-device, then device</option><option value="kokoro">Natural on-device only (no limit)</option><option value="gemini">Gemini voice only (has a daily limit)</option><option value="device">Device: Daniel (instant, robotic)</option></select>
+  <label for="sp">Speaking speed</label><select id="sp"><option value="1">Normal</option><option value="1.08">A little faster</option><option value="1.15">Faster</option></select>
   <label for="kv">On-device voice</label><select id="kv"><option value="bm_daniel">Daniel (British)</option><option value="bm_george">George (British)</option><option value="bm_lewis">Lewis (British)</option><option value="bm_fable">Fable (British)</option></select>
   <div class="row"><button id="kdlb">Download natural voice</button></div><div id="kst" style="color:var(--dim);font-size:12px;margin:2px 0 8px"></div>
   <label for="tv">Gemini voice</label><select id="tv"><option>Charon</option><option>Orus</option><option>Iapetus</option><option>Alnilam</option><option>Schedar</option><option>Sadaltager</option><option>Puck</option></select>
@@ -397,10 +398,11 @@ function pcmToWav(pcm, rate){
   return new Blob([b], { type:'audio/wav' });
 }
 const b64u8 = t => { const bin = atob(t), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+const spd = () => +store.get('sp', '1.08') || 1.08;
 const ttsMode = () => { const v = store.get('tts', 'auto'); return v === 'neural' ? 'auto' : v; };
 const kReady = () => store.get('kdl', '') === '1' && Date.now() > (window._kFail || 0);
 const gReady = () => Date.now() > (window._ttsFail || 0) && !!store.get('gk', '');
-const useNeural = () => { const m = ttsMode(); return !!$('tts') && ((m === 'auto' && (kReady() || gReady())) || (m === 'kokoro' && kReady()) || (m === 'gemini' && gReady())); };
+const useNeural = () => { const m = ttsMode(); return !!$('tts') && (((m === 'auto' || m === 'fast') && (kReady() || gReady())) || (m === 'kokoro' && kReady()) || (m === 'gemini' && gReady())); };
 let nUnlocked = false, silentUrl = '';
 function neuralUnlock(){
   if (nUnlocked || spBusy) return;
@@ -429,6 +431,7 @@ function ttsResult(bytes, mime){
   while (b > a && Math.abs(i16[b]) < th) b--;
   return { url: URL.createObjectURL(isWav ? new Blob([bytes], { type:'audio/wav' }) : pcmToWav(bytes, rate)), lead: a / rate, speech: Math.max(.25, (b - a) / rate), dur: n / rate };
 }
+function gRes(b, m){ const r = ttsResult(b, m); r.rate = 1 + (spd() - 1) * .75; return r; }
 function findAudio(o){
   if (!o || typeof o !== 'object') return null;
   if (o.type === 'audio' && typeof o.data === 'string') return o;
@@ -448,7 +451,7 @@ async function geminiTTS(text){
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const au = findAudio(await r.json());
         if (!au) throw new Error('no audio');
-        return ttsResult(b64u8(au.data), au.mime_type || au.mimeType || 'audio/wav');
+        return gRes(b64u8(au.data), au.mime_type || au.mimeType || 'audio/wav');
       } catch(e){ window._ttsNoInt = true; }
     }
     try {
@@ -460,13 +463,13 @@ async function geminiTTS(text){
       const j = await r.json();
       const part = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).find(x => x.inlineData && /audio/i.test(x.inlineData.mimeType || ''));
       if (!part) throw new Error('no audio returned');
-      return ttsResult(b64u8(part.inlineData.data), part.inlineData.mimeType || '');
+      return gRes(b64u8(part.inlineData.data), part.inlineData.mimeType || '');
     } catch(e){ last = e; if (/API key/i.test(e.message || '')) break; }
   }
   throw last;
 }
 /* ---------- Kokoro: free on-device natural voice (no quota) ---------- */
-let kTTS = null, kLoading = null, kChain = Promise.resolve();
+let kTTS = null, kLoading = null, kChain = Promise.resolve(), kRTF = 0;
 async function kLoad(onProg){
   if (kTTS) return kTTS;
   if (kLoading) return kLoading;
@@ -481,14 +484,21 @@ async function kLoad(onProg){
       let L = 0, T = 0; Object.values(files).forEach(f => { L += f.l; T += f.t; });
       if (T) onProg(Math.min(99, Math.round(L / T * 100)), Math.round(T / 1048576));
     } });
-    kTTS = tts; store.set('kdl', '1'); return tts;
+    kTTS = tts; store.set('kdl', '1');
+    kChain = kChain.then(async () => {
+      try {
+        const t0 = performance.now(), a = await tts.generate('Good evening, sir.', { voice: store.get('kv', 'bm_daniel'), speed: spd() });
+        const f = a.audio || a.data; kRTF = ((performance.now() - t0) / 1000) / (f.length / (a.sampling_rate || 24000)); kStatus();
+      } catch(_){}
+    });
+    return tts;
   })();
   try { return await kLoading; } finally { kLoading = null; }
 }
 function kokoroTTS(text){
   const run = kChain.then(async () => {
     const tts = await kLoad();
-    const a = await tts.generate(text, { voice: store.get('kv', 'bm_daniel') });
+    const a = await tts.generate(text, { voice: store.get('kv', 'bm_daniel'), speed: spd() });
     const f32 = a.audio || a.data, sr = a.sampling_rate || 24000;
     const i16 = new Int16Array(f32.length);
     for (let i = 0; i < f32.length; i++) i16[i] = Math.max(-1, Math.min(1, f32[i])) * 32767;
@@ -498,7 +508,7 @@ function kokoroTTS(text){
   return run;
 }
 async function fetchTTS(text){
-  const m = ttsMode(), order = m === 'kokoro' ? ['k'] : m === 'gemini' ? ['g'] : m === 'device' ? [] : ['k', 'g'];
+  const m = ttsMode(), order = m === 'kokoro' ? ['k'] : m === 'gemini' ? ['g'] : m === 'device' ? [] : m === 'fast' ? ['g', 'k'] : ['k', 'g'];
   let last = null;
   for (const e of order){
     if (e === 'k'){
@@ -513,7 +523,7 @@ async function fetchTTS(text){
 }
 function kStatus(){
   const el = $('kst'); if (!el) return;
-  el.textContent = store.get('kdl', '') === '1' ? 'On-device natural voice: downloaded and ready.' : 'On-device natural voice: not downloaded (about 90 MB, one time).';
+  el.textContent = store.get('kdl', '') === '1' ? 'On-device natural voice: downloaded and ready.' + (kRTF ? ' Speed on this phone: ' + (1 / kRTF).toFixed(1) + 'x real time' + (kRTF > 1 ? ' (slower than speech, so expect a delay).' : '.') : '') : 'On-device natural voice: not downloaded (about 90 MB, one time).';
   const b = $('kdlb'); if (b) b.textContent = store.get('kdl', '') === '1' ? 'Test natural voice' : 'Download natural voice';
 }
 function kPrompt(force){
@@ -542,9 +552,10 @@ function takeGroup(first){
   let it = spq.shift();
   while (it && it.id !== sayId) it = spq.shift();
   if (!it) return null;
-  if (first && it.text.length > 60){
-    let i = it.text.lastIndexOf(', ', 56); if (i < 18) i = it.text.lastIndexOf(' ', 56);
-    if (i >= 18){
+  if (first && it.text.length > 40){
+    const lim = (ttsMode() !== 'gemini' && kReady() && kRTF > 1) ? 32 : 56, mn = lim < 40 ? 12 : 18;
+    let i = it.text.lastIndexOf(', ', lim); if (i < mn) i = it.text.lastIndexOf(' ', lim);
+    if (i >= mn){
       const head = { u: it.u, text: it.text.slice(0, i + 1).trim(), id: it.id, finish: () => {}, hl: it.hl, off: 0, orig: it };
       const tail = { u: it.u, text: it.text.slice(i + 1).trim(), id: it.id, finish: it.finish, hl: it.hl, off: i + 1, orig: it };
       if (tail.text){ spq.unshift(tail); it = head; }
@@ -579,9 +590,9 @@ async function npump(){
     if (grp[0].id !== sayId){ ended = true; if (curIt === token){ spBusy = false; curIt = null; } return; }
     const el = $('tts');
     el.onended = fin; el.onerror = () => fail(new Error('audio error'));
-    el.src = au.url;
+    el.src = au.url; el.defaultPlaybackRate = au.rate || 1; el.playbackRate = au.rate || 1;
     document.body.classList.add('talk');
-    await el.play();
+    await el.play(); el.playbackRate = au.rate || 1;
     const offs = []; let tot = 0; grp.forEach(g => { offs.push(tot); tot += g.text.length + 1; });
     const joined = grp.map(g => g.text).join(' '), cw = []; let acc = 0;
     for (const ch of joined){ acc += 1 + (',;:'.indexOf(ch) >= 0 ? 5 : '.!?'.indexOf(ch) >= 0 ? 9 : 0); cw.push(acc); }
@@ -625,7 +636,7 @@ function speechChunk(text, id){
   if (!text || !window.speechSynthesis || id !== sayId) return;
   if (text.length > 380){ let i = text.lastIndexOf(', ', 380); if (i < 150) i = text.lastIndexOf(' ', 380); if (i < 1) i = 380; speechChunk(text.slice(0, i), id); speechChunk(text.slice(i), id); return; }
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = (curLang() || {}).code || 'en-GB'; u.rate = 1.05;
+  u.lang = (curLang() || {}).code || 'en-GB'; u.rate = 1.02 * spd();
   let v = pickVoice();
   if (!v && window.speechSynthesis) { try { speechSynthesis.getVoices(); v = pickVoice(); } catch(_){} }
   if (v){ u.voice = v; u.lang = v.lang; }
@@ -1634,7 +1645,7 @@ async function diag(){
 
 /* ---------- Settings ---------- */
 $('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
-  { const tm = store.get('tts','auto'); $('te').value = tm === 'neural' ? 'auto' : tm; } $('kv').value = store.get('kv','bm_daniel'); kStatus(); $('tv').value = store.get('ttsv','Charon'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+  { const tm = store.get('tts','auto'); $('te').value = tm === 'neural' ? 'auto' : tm; } $('kv').value = store.get('kv','bm_daniel'); $('sp').value = store.get('sp','1.08'); kStatus(); $('tv').value = store.get('ttsv','Charon'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('kdlb').onclick = () => { store.set('kv', $('kv').value); if (store.get('kdl', '') !== '1') store.set('kdl', ''); dlg.close(); kPrompt(true); };
 $('diag').onclick = diag;
@@ -1644,7 +1655,7 @@ function greeting(){
   return h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('tts', $('te').value); store.set('kv', $('kv').value); window._kFail = 0; store.set('ttsv', $('tv').value); window._ttsFail = 0; window._ttsWarned = false; if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('tts', $('te').value); store.set('kv', $('kv').value); store.set('sp', $('sp').value); window._kFail = 0; store.set('ttsv', $('tv').value); window._ttsFail = 0; window._ttsWarned = false; if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
