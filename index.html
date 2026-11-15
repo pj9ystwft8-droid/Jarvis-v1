@@ -932,12 +932,22 @@ function listen(){
   if (!recMode()){ listenSR(); return; }
   listenRec();
 }
-let vstream = null;
+let vstream = null, micWait = false;
 async function getMic(){
+  clearTimeout(window._mk);
+  if (vstream){
+    const ts = vstream.getAudioTracks();
+    if (ts.some(t => t.readyState !== 'live')) micKill();
+    else if (ts.some(t => t.muted)){
+      await new Promise(ok => { const d = () => ok(); ts.forEach(t => { t.onunmute = d; }); setTimeout(d, 450); });
+      if (vstream && vstream.getAudioTracks().some(t => t.muted)) micKill();
+    }
+  }
   if (vstream && vstream.getAudioTracks().some(t => t.readyState === 'live')){ vstream.getAudioTracks().forEach(t => { t.enabled = true; }); return vstream; }
   vstream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
   return vstream;
 }
+function micKill(){ try { if (vstream) vstream.getTracks().forEach(t => t.stop()); } catch(_){} vstream = null; }
 function micHold(on){ if (vstream) vstream.getAudioTracks().forEach(t => { t.enabled = !!on; }); }
 async function transcribeAudio(blob, mime){
   const c = cfg();
@@ -953,9 +963,9 @@ async function transcribeAudio(blob, mime){
 }
 async function listenRec(){
   const h = { dead:false, abort(){ this.dead = true; try { this.stop && this.stop(); } catch(_){} } };
-  rec = h;
+  rec = h; micWait = true;
   let stream = null, ctx = null, mr = null, poll = null;
-  const cleanup = () => { clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { micHold(false); } catch(_){} try { if (ctx) ctx.close(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
+  const cleanup = () => { micWait = false; clearInterval(poll); try { if (mr && mr.state !== 'inactive') mr.stop(); } catch(_){} try { micHold(false); } catch(_){} try { if (ctx) ctx.close(); } catch(_){} if (meterAn === h.an) meterAn = null; heardNow = false; };
   const again = (ms) => { if (rec === h) rec = null; if (live && !busy) setTimeout(listen, ms || 200); };
   try {
     stream = await getMic();
@@ -973,13 +983,22 @@ async function listenRec(){
   mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   let AC = window.AudioContext || window.webkitAudioContext, an = null;
   try { ctx = new AC(); if (ctx.state === 'suspended') ctx.resume(); const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an); h.an = an; meterAn = an; } catch(_){}
-  const t0 = Date.now(); let speechAt = 0, lastLoud = 0, floor = 0, nf = 0, heardSpeech = false;
+  const t0 = Date.now(); let speechAt = 0, lastLoud = 0, floor = 0, nf = 0, heardSpeech = false, anyNz = false;
+  h.speaking = () => heardSpeech;
   const buf = new Uint8Array(512);
   poll = setInterval(() => {
     if (h.dead){ cleanup(); return; }
     let rms = 0;
     if (an){ an.getByteTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++){ const x = (buf[i] - 128) / 128; sum += x * x; } rms = Math.sqrt(sum / buf.length); }
     const now = Date.now();
+    if (rms > 0){ anyNz = true; micWait = false; }
+    if (!anyNz && now - t0 > 1000){
+      h.dead = true; cleanup(); micKill(); if (rec === h) rec = null;
+      window._deadN = (window._deadN || 0) + 1;
+      if (window._deadN >= 2){ window._deadN = 0; window._recFailUntil = Date.now() + 60000; add('sys', 'The iPhone muted the microphone, sir. Using the standard listener for a minute.'); }
+      if (live && !busy) setTimeout(listen, 300);
+      return;
+    }
     if (now - t0 < 500){ floor += rms; nf++; return; }
     const thr = Math.max(.02, (floor / Math.max(1, nf)) * 2.8);
     if (rms > thr){ lastLoud = now; if (!heardSpeech){ heardSpeech = true; speechAt = now; } heardNow = true; clearTimeout(window._hn); window._hn = setTimeout(() => { heardNow = false; }, 400); }
@@ -988,17 +1007,19 @@ async function listenRec(){
   }, 60);
   h.stop = () => { clearInterval(poll); try { if (mr.state !== 'inactive') mr.stop(); } catch(_){} };
   mr.onstop = async () => {
+    if (heardSpeech) window._deadN = 0;
     const had = heardSpeech, type = mr.mimeType || mime || 'audio/mp4';
     cleanup();
-    if (h.dead || !live){ if (rec === h) rec = null; return; }
+    if (h.dead || (!live && !h.late)){ if (rec === h) rec = null; return; }
     if (!had || !chunks.length){ again(150); return; }
     txt.value = '…';
     try {
       const q = await transcribeAudio(new Blob(chunks, { type }), type.split(';')[0]);
-      if (h.dead || !live){ if (rec === h) rec = null; txt.value = ''; return; }
+      if (h.dead || (!live && !h.late)){ if (rec === h) rec = null; txt.value = ''; return; }
       txt.value = '';
       const clean = q.replace(/^["'\s]+|["'\s]+$/g, '');
       if (rec === h) rec = null;
+      if (h.late && live === false && clean){ micHold(false); }
       if (!clean || /^\[?\s*silence\s*\]?\.?$/i.test(clean)){ again(150); return; }
       submit(clean);
     } catch(e){
@@ -1012,11 +1033,13 @@ async function listenRec(){
   mr.start();
 }
 function stopLive(){
-  live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn); micHold(false);
+  live = false; busy = false; sayId++; heardNow = false; clearTimeout(window._hn); micWait = false;
   $('mic').classList.remove('on'); document.body.classList.remove('live', 'talk');
   $('vm').classList.remove('open'); meterOff();
   const r = rec; rec = null; lastStop = Date.now();
-  if (r){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} }
+  clearTimeout(window._mk); window._mk = setTimeout(micKill, 120000);
+  if (r && r.speaking && r.speaking()){ r.late = true; try { r.stop(); } catch(e){} }
+  else { if (!r || !r.late) micHold(false); if (r){ r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch(e){} } }
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 async function startLive(){
@@ -1069,7 +1092,7 @@ function meterOff(){
     vm.style.setProperty('--lvl', lvl.toFixed(3));
     const hear = !talking && raw > .12, think = busy && !talking;
     vm.classList.toggle('hear', hear); vm.classList.toggle('speak', talking); vm.classList.toggle('think', think);
-    $('vmt').textContent = talking ? 'Speaking' : think ? 'Thinking' : hear ? 'Listening' : 'Go ahead, sir';
+    $('vmt').textContent = micWait && !talking && !busy ? 'Waking microphone\u2026' : talking ? 'Speaking' : think ? 'Thinking' : hear ? 'Listening' : 'Go ahead, sir';
   }
   requestAnimationFrame(tick);
 })();
