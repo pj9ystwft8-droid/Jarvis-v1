@@ -131,7 +131,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15w</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15x</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -404,13 +404,48 @@ function neuralUnlock(){
     const pr = el.play(); if (pr && pr.then) pr.then(() => { nUnlocked = true; }).catch(() => {});
   } catch(_){}
 }
+function ttsResult(bytes, mime){
+  const isWav = /wav/i.test(mime || '') || (bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70);
+  let pcm = bytes, rate = +(((mime || '').match(/rate=(\d+)/) || [])[1]) || 24000;
+  if (isWav){
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); rate = dv.getUint32(24, true) || 24000; pcm = null;
+    for (let off = 12; off + 8 <= bytes.length;){
+      const id = String.fromCharCode(bytes[off], bytes[off + 1], bytes[off + 2], bytes[off + 3]), sz = Math.min(dv.getUint32(off + 4, true), bytes.length - off - 8);
+      if (id === 'data'){ pcm = bytes.subarray(off + 8, off + 8 + sz); break; }
+      off += 8 + sz + (sz & 1);
+    }
+    if (!pcm) pcm = bytes.subarray(44);
+  }
+  const n = pcm.length >> 1, i16 = new Int16Array(pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + n * 2));
+  let a = 0, b = n - 1; const th = 400;
+  while (a < n && Math.abs(i16[a]) < th) a++;
+  while (b > a && Math.abs(i16[b]) < th) b--;
+  return { url: URL.createObjectURL(isWav ? new Blob([bytes], { type:'audio/wav' }) : pcmToWav(bytes, rate)), lead: a / rate, speech: Math.max(.25, (b - a) / rate), dur: n / rate };
+}
+function findAudio(o){
+  if (!o || typeof o !== 'object') return null;
+  if (o.type === 'audio' && typeof o.data === 'string') return o;
+  for (const v of Object.values(o)){ const f = findAudio(v); if (f) return f; }
+  return null;
+}
 async function fetchTTS(text){
-  const c = cfg(), L = curLang();
-  const sys = L ? 'Speak naturally, calmly and warmly. Read aloud only the text you are given and never read these instructions.' : 'You are the voice of Jarvis, a refined British English butler. Speak in a calm, warm, natural British voice at a steady, unhurried pace. Read aloud only the text you are given and never read these instructions.';
-  const mk = withSys => { const b = { contents:[{ role:'user', parts:[{ text }] }], generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: store.get('ttsv', 'Charon') } } } } }; if (withSys) b.systemInstruction = { parts:[{ text: sys }] }; return JSON.stringify(b); };
+  const c = cfg(), L = curLang(), voice = store.get('ttsv', 'Charon');
+  const style = 'in a refined British English accent, Received Pronunciation, like an English butler: calm, warm, natural and unhurried';
+  const sys = L ? 'Speak naturally, calmly and warmly. Read aloud only the text you are given and never read these instructions.' : 'You are the voice of Jarvis, a refined British English butler. Always speak with a clear British English accent, calm, warm and natural, at a steady, unhurried pace. Read aloud only the text you are given and never read these instructions.';
   let last = null;
   for (const m of [store.get('ttsm', '') || 'gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']){
+    if (!window._ttsNoInt){
+      try {
+        const ann = L ? [] : [{ type:'speech_metadata', style }];
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': c.gk }, body: JSON.stringify({ model: m, input:[{ type:'user_input', content:[{ type:'text', text, annotations: ann }] }], response_format:{ type:'audio' }, generation_config:{ speech_config:[{ voice }] } }) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const au = findAudio(await r.json());
+        if (!au) throw new Error('no audio');
+        return ttsResult(b64u8(au.data), au.mime_type || au.mimeType || 'audio/wav');
+      } catch(e){ window._ttsNoInt = true; }
+    }
     try {
+      const mk = withSys => { const b = { contents:[{ role:'user', parts:[{ text }] }], generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: voice } } } } }; if (withSys) b.systemInstruction = { parts:[{ text: sys }] }; return JSON.stringify(b); };
       const post = withSys => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: mk(withSys) });
       let r = await post(!window._ttsNoSys);
       if (!r.ok && r.status === 400 && !window._ttsNoSys){ window._ttsNoSys = true; r = await post(false); }
@@ -418,10 +453,7 @@ async function fetchTTS(text){
       const j = await r.json();
       const part = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).find(x => x.inlineData && /audio/i.test(x.inlineData.mimeType || ''));
       if (!part) throw new Error('no audio returned');
-      const bytes = b64u8(part.inlineData.data), mime = part.inlineData.mimeType || '';
-      const isWav = /wav/i.test(mime) || (bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70);
-      const rate = +((mime.match(/rate=(\d+)/) || [])[1]) || 24000;
-      return { url: URL.createObjectURL(isWav ? new Blob([bytes], { type:'audio/wav' }) : pcmToWav(bytes, rate)) };
+      return ttsResult(b64u8(part.inlineData.data), part.inlineData.mimeType || '');
     } catch(e){ last = e; if (/API key/i.test(e.message || '')) break; }
   }
   throw last;
@@ -476,12 +508,15 @@ async function npump(){
     document.body.classList.add('talk');
     await el.play();
     const offs = []; let tot = 0; grp.forEach(g => { offs.push(tot); tot += g.text.length + 1; });
+    const joined = grp.map(g => g.text).join(' '), cw = []; let acc = 0;
+    for (const ch of joined){ acc += 1 + (',;:'.indexOf(ch) >= 0 ? 5 : '.!?'.indexOf(ch) >= 0 ? 9 : 0); cw.push(acc); }
     nTimer = setInterval(() => {
-      const d = el.duration; if (!d || !isFinite(d)) return;
-      const pos = Math.min(tot - 1, el.currentTime / d * tot);
-      let k = 0; for (let i = 0; i < offs.length; i++) if (offs[i] <= pos) k = i;
+      const t = el.currentTime - (au.lead || 0) - .05; if (t < 0) return;
+      const target = Math.min(1, t / (au.speech || el.duration || 1)) * acc;
+      let lo = 0, hi = cw.length - 1; while (lo < hi){ const mid = (lo + hi) >> 1; if (cw[mid] >= target) hi = mid; else lo = mid + 1; }
+      const pos = lo; let k = 0; for (let i = 0; i < offs.length; i++) if (offs[i] <= pos) k = i;
       if (grp[k].hl) grp[k].hl.boundary(Math.max(0, pos - offs[k]) + (grp[k].off || 0));
-    }, 60);
+    }, 50);
     if (!nextG) nextG = takeGroup(false);
   } catch(e){ fail(e); }
 }
