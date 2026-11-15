@@ -95,6 +95,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 .body b{font-weight:650;color:#fff}
 .body a.lnk{color:var(--arc);text-decoration:underline;text-underline-offset:3px;word-break:break-all}
 .body a.map{color:var(--arc);text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.srcs .qs{color:var(--dim);font-size:12px;line-height:1.5;padding:2px 0 8px}
 .srcs .tg{background:none;border:1px solid var(--line);color:var(--arc);border-radius:14px;padding:6px 12px;font-size:13px}
 .srcs div a{display:block;color:var(--arc);text-decoration:underline;text-underline-offset:3px;padding:7px 0;word-break:break-word;font-size:14px}
 </style>
@@ -120,6 +121,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
+  <label for="rm">Research model (factual questions)</label><input id="rm" value="gemini-3.6-flash">
+  <label for="dp">Research depth</label><select id="dp"><option value="deep">Thorough: search deeper, slower</option><option value="fast">Fast: quick answers</option></select>
   <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
   <label for="ik">Google Images key (optional)</label><input id="ik" type="password" autocomplete="off">
   <label for="ic">Google search engine ID (optional)</label><input id="ic" autocomplete="off">
@@ -140,7 +143,7 @@ const store = {
   get(k, d){ try { return localStorage.getItem(k) || d } catch(e){ return d } },
   set(k, v){ try { localStorage.setItem(k, v) } catch(e){} }
 };
-const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini') });
+const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini'), rm: store.get('rm','') || 'gemini-3.6-flash' });
 let manualScroll = false;
 log.addEventListener('touchmove', () => { manualScroll = true; }, { passive:true });
 log.addEventListener('wheel', () => { manualScroll = true; }, { passive:true });
@@ -314,7 +317,7 @@ function speechEnd(id){ if (id !== sayId) return; fin = true; if (pend <= 0) don
 function say(text){ const id = speechStart(); speechChunk(cleanSpeech(text), id); speechEnd(id); }
 
 /* ---------- AI calls ---------- */
-const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: for any real question, answer thoroughly in the style of a top AI assistant. Begin with the direct answer in one or two sentences, then explain in two to four short paragraphs covering the key facts, the context, the reasons, and any useful details or next steps. Put a blank line between paragraphs. Wrap the few most important words or phrases of each paragraph in double asterisks, like **this**, so the key points stand out. Do not use hashes or other markdown. Keep greetings, thanks and very simple facts such as the time brief. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific physical place with a street location, such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. Never use the double square brackets for a website, web address, online store or company homepage. WEBSITES: write every website as [Short name](https://full-address), for example [Apple Germany](https://www.apple.com/de/), using the exact address from your search results. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
+const BASE_SYSTEM = 'You are Jarvis, a refined, helpful personal assistant. Address the user as "sir". Reply in English. ANSWER STYLE: for any real question, answer thoroughly in the style of a top AI assistant. Begin with the direct answer in one or two sentences, then explain in two to four short paragraphs covering the key facts, the context, the reasons, and any useful details or next steps. Put a blank line between paragraphs. Wrap the few most important words or phrases of each paragraph in double asterisks, like **this**, so the key points stand out. Do not use hashes or other markdown. Keep greetings, thanks and very simple facts such as the time brief. Never say you cannot provide links or sources. When the user asks for a link, website or source, or when a website is the best place to continue, include the full https address of the relevant page in your answer, using only addresses you actually found in your search results and never inventing one. The app also lists the sources it found under your answer. PLACES: whenever you name a specific physical place with a street location, such as a restaurant, shop, hotel, attraction or address, write it as [[Place name, City or area]] so the app can add a Google Maps directions link. Never use the double square brackets for a website, web address, online store or company homepage. WEBSITES: write every website as [Short name](https://full-address), for example [Apple Germany](https://www.apple.com/de/), using the exact address from your search results. For any factual question, or anything about news, people, places, products, prices, scores, events or things that may have changed, always search the web first and never answer from memory alone. Draw on several different independent sources from across the internet such as news outlets, official sites, forums, journals and reference sites, and do not rely on any single site such as Wikipedia. If sources disagree, say so briefly. Answer directly without searching only for greetings, opinions, simple maths, or casual chat. RESEARCH RULES: for any factual question, run at least three Google searches with different wording, including the exact names and terms the user used, and read the most relevant results before answering. Check important claims against at least two independent sources. If the user states something as a fact, says they are sure, or asks you to check again, treat that as a request to verify: search again from scratch with new wording, do not defend your earlier answer, and report what the sources show. If the sources support the user, say plainly that the user is right. If you still find nothing, say exactly what you searched for and what you found, and never claim something is false only because you did not find it. Never say you cannot access the internet. LIST RULE: when the user asks for a list, a ranking, a top N, a comparison or recommendations, give exactly the number of items requested, as numbered lines in the form 1. Name: reason, one item per line. For a top 10 or any list of ten or more, elaborate each item in two sentences covering why it fits the user and what makes it stand out. For a smaller or partial list such as a top 5, give just that many with one sentence each. Use the user stated tastes and any known facts about them. Prices, sales and availability change, so tell the user to check the store or site for the current price.';
 
 
 /* ---------- Clock, memory ---------- */
@@ -351,21 +354,29 @@ async function learn(q, a){
   } catch(e){}
 }
 
-function genCfg(m, max){
+function levelFor(m, lvl){
+  if (!lvl || !/^gemini-3/.test(m)) return null;
+  if (/gemini-3\.[78]/.test(m) && lvl === 'minimal') return 'low';
+  return lvl;
+}
+function genCfg(m, max, lvl){
   const g = { maxOutputTokens: max || 500 };
-  if (/gemini-2\.5-flash/.test(m)) g.thinkingConfig = { thinkingBudget: 0 };
+  const tl = levelFor(m, lvl);
+  if (tl) g.thinkingConfig = { thinkingLevel: tl };
+  else if (/gemini-2\.5-flash/.test(m)) g.thinkingConfig = { thinkingBudget: 0 };
   return g;
 }
+let gOpts = {};
 const isList = q => /\b(top\s*\d+|best\s*\d+|\d+\s*best|list|ranking|rank|recommend(?:ation)?s?|suggest(?:ion)?s?|compare|comparison)\b/i.test(q);
 function gBody(q, model, extra, useTools){
-  const contents = history.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
+  const contents = (gOpts.hist || history).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts:[{ text:m.text }] }));
   const parts = [{ text:(extra ? extra + '\n\nQuestion: ' : '') + q }];
   if (curImg) parts.push({ inlineData:{ mimeType:curImg.mime, data:curImg.data } });
   contents.push({ role:'user', parts });
   const tools = [];
   if (useTools !== false) tools.push({ google_search:{} });
   if (urlIn(q).length) tools.push({ url_context:{} });
-  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, isList(q) ? 3000 : 1500) };
+  const body = { systemInstruction:{ parts:[{ text:sysPrompt() }] }, contents, generationConfig: genCfg(model, gOpts.max || (isList(q) ? 3000 : 1500), gOpts.level) };
   if (tools.length) body.tools = tools;
   return JSON.stringify(body);
 }
@@ -424,19 +435,22 @@ async function addNearest(el, q){
   el.appendChild(box); followAnswer(el);
 }
 function status(label){ const d = document.createElement('div'); d.className = 'status'; const i = document.createElement('i'); const t = document.createElement('span'); t.textContent = label; d.appendChild(i); d.appendChild(t); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
-let searchedFlag = false, siteList = [], gChunks = [], gSupports = [];
+let searchedFlag = false, siteList = [], gChunks = [], gSupports = [], gQueries = [];
 const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
 async function streamGemini(q, cb, model, extra, useTools, plain){
   const c = cfg();
+  const ac = plain && window.AbortController ? new AbortController() : null, tmo = ac ? setTimeout(() => ac.abort(), 90000) : 0;
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + (plain ? ':generateContent?' : ':streamGenerateContent?alt=sse&') + 'key=' + encodeURIComponent(c.gk), {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model, extra, useTools)
+    method:'POST', headers:{'Content-Type':'application/json'}, body: gBody(q, model, extra, useTools), signal: ac ? ac.signal : undefined
   });
+  clearTimeout(tmo);
   if (!r.ok){ let m = 'Gemini error'; try { const j = await r.json(); m = (j.error && j.error.message) || m; } catch(_){} throw new Error(m); }
   if (plain){
     const j = await r.json(), cand = j.candidates && j.candidates[0];
     const txt = ((cand && cand.content && cand.content.parts) || []).map(p => p.text || '').join('');
     const gm = cand && cand.groundingMetadata;
     if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
+    if (gm && gm.webSearchQueries && gm.webSearchQueries.length) gQueries = gm.webSearchQueries;
     if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
     if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
     if (txt) cb(txt);
@@ -444,7 +458,7 @@ async function streamGemini(q, cb, model, extra, useTools, plain){
   }
   const rd = r.body.getReader(), dec = new TextDecoder();
   let buf = '', all = '';
-  searchedFlag = false; siteList = []; gChunks = []; gSupports = [];
+  searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = [];
   for (;;){
     const { done, value } = await rd.read(); if (done) break;
     buf += dec.decode(value, { stream:true });
@@ -457,7 +471,8 @@ async function streamGemini(q, cb, model, extra, useTools, plain){
         const t = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).map(p => p.text || '').join('');
         const gm = j.candidates && j.candidates[0] && j.candidates[0].groundingMetadata;
         if (gm && ((gm.webSearchQueries && gm.webSearchQueries.length) || (gm.groundingChunks && gm.groundingChunks.length))) searchedFlag = true;
-        if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
+        if (gm && gm.webSearchQueries && gm.webSearchQueries.length) gQueries = gm.webSearchQueries;
+    if (gm){ if (gm.groundingChunks && gm.groundingChunks.length) gChunks = gm.groundingChunks; if (gm.groundingSupports && gm.groundingSupports.length) gSupports = gm.groundingSupports; }
     if (gm && gm.groundingChunks) gm.groundingChunks.forEach(ch => { const w = ch.web; if (w && w.uri && !siteList.some(x => x.u === w.uri)) siteList.push({ t: w.title || w.uri, u: w.uri }); });
         if (t){ all += t; cb(all); }
       } catch(_){}
@@ -522,13 +537,50 @@ function listSpeech(t){
   const top = items.slice(0, 3).map((l, i) => (i + 1) + ', ' + l.replace(/^\d+[.)]\s*/, '').split(/:\s|\s[-\u2013\u2014]\s/)[0]).join('. ');
   return intro + ' ' + top + (items.length > 3 ? '. The full list of ' + items.length + ' is on your screen, sir.' : '.');
 }
+
+const casualQ = /^\s*(?:hi|hello|hey|thanks?|thank you|good (?:morning|afternoon|evening|night)|ok(?:ay)?|cool|nice)\b[^?]{0,20}$|\b(?:who are you|your name|what can you do|how are you)\b/i;
+const isRecheck = q => history.length >= 2 && q.trim().split(/\s+/).length <= 30 && /\b(?:check again|search again|look again|double.?check|re-?check|try again|dig deeper|deep dive|more thorough|look it up|search (?:the )?(?:internet|online|web)|are you sure|i(?:'m| am) (?:sure|certain|positive)|verify (?:it|that|this)|(?:you(?:'re| are)|that(?:'s| is)|it(?:'s| is)|this is) (?:wrong|incorrect|not (?:right|true|correct)|a fact))\b/i.test(q);
+const needsResearch = q => !casualQ.test(q) && (isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q));
+const NEG = /\b(?:could(?:\s?not|n't) find|can(?:not|'t) find|unable to (?:find|verify|confirm|locate)|no (?:information|records?|evidence|results|reliable|mention|data)|not able to (?:find|verify|confirm)|did not find|do(?:es)? not have (?:any )?(?:information|data)|don't have (?:any )?(?:information|data)|could not verify)\b/i;
+const DEEPEN = 'IMPORTANT: do a deeper and more thorough search now. Run at least four different Google searches using alternative wording, exact names, other spellings or languages where relevant, official sources, news and forums. Do not repeat or defend any earlier answer. If the user said something is a fact, search specifically to confirm or refute that claim.';
+async function runResearch(q, extra, recheck, c, onStatus){
+  const snap = (txt, tools) => ({ txt, tools, searched: searchedFlag, sites: siteList.slice(), chunks: gChunks, sup: gSupports, qs: gQueries.slice() });
+  const attempt = async (m, lvl, tools, ex) => {
+    searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = [];
+    gOpts = { level: lvl, hist: recheck ? history.slice(0, -2) : null, max: 8192 };
+    let txt = '';
+    try { await streamGemini(q, t => { txt = t; }, m, ex, tools, true); } finally { gOpts = {}; }
+    return snap(txt, tools);
+  };
+  const chain = async (list, ex) => {
+    let err = null;
+    for (const [m, lvl, tools] of list){
+      try { const r = await attempt(m, lvl, tools, ex); if (r.txt.trim()) return r; err = new Error('No answer came back. Please try again.'); }
+      catch (e){ err = e; if (/API key|API_KEY/i.test(e.message || '')) throw e; }
+    }
+    throw err;
+  };
+  const first = await chain([[c.rm, recheck ? 'high' : 'medium', true], [c.rm, null, true], [c.gm, 'low', true], [c.gm, null, false]], extra);
+  const neg = NEG.test(first.txt);
+  if (!first.tools || (first.searched && !neg)) return first;
+  onStatus('Digging deeper, sir…');
+  let second = null;
+  try { second = await chain([[c.rm, 'high', true], [c.gm, 'medium', true]], (extra ? extra + '\n' : '') + DEEPEN); } catch (e){ second = null; }
+  if (second && second.txt.trim() && second.searched && (!first.searched || neg)) return second;
+  return first;
+}
 async function thinkStream(q, extra){
   if (nearIntent(q)){
     try { getPos().catch(() => {}); } catch(e){}
     const cp = store.get('pos', '');
     if (cp){ try { const o = JSON.parse(cp); extra = (extra ? extra + '\n' : '') + 'The user is currently at latitude ' + o.lat.toFixed(4) + ', longitude ' + o.lon.toFixed(4) + '. For places, recommend the ones nearest to this location and say roughly how far each is.'; } catch(e){} }
   }
-  const c = cfg(), wait = status(needsWeb(q) ? 'Searching the web…' : 'Thinking…'), id = speechStart();
+  const c = cfg();
+  const recheck = isRecheck(q);
+  if (recheck){ const prev = history.slice().reverse().find(m => m.role === 'user'); extra = (extra ? extra + '\n' : '') + 'The user is disputing or asking you to verify your earlier answer. Their earlier question was: "' + (prev ? prev.text : '') + '". Ignore your earlier answer, which may be wrong, and research it again from scratch.'; }
+  const research = store.get('depth', 'deep') !== 'fast' && needsResearch(q) && !curImg;
+  const wait = status(research ? 'Researching the web…' : (needsWeb(q) ? 'Searching the web…' : 'Thinking…')), id = speechStart();
+  const slow = research ? setTimeout(() => { const sp = wait.querySelector('span'); if (sp && sp.textContent === 'Researching the web…') sp.textContent = 'Still researching, sir…'; }, 9000) : 0;
   let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false;
   const listMode = isList(q), readAll = store.get('read', 'short') === 'full', LIM = 420;
   const speakPart = t => {
@@ -550,14 +602,20 @@ async function thinkStream(q, extra){
     full = all; renderText(body, all); followAnswer(el); flush(false);
   };
   try {
-    const bk = c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite';
-    const tries = [[c.gm, true, false], [c.gm, false, false], [c.gm, false, true], [bk, false, true]];
-    let lastErr = null;
-    for (const [mdl, tl, pl] of tries){
-      try { searchedFlag = false; siteList = []; gChunks = []; gSupports = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; toolsOk = tl; break; }
-      catch (err){ lastErr = err; if (full || /API key|API_KEY/i.test(err.message || '')) break; }
+    if (research){
+      const r = await runResearch(q, extra, recheck, c, label => { const sp = wait.querySelector('span'); if (sp && !el) sp.textContent = label; });
+      searchedFlag = r.searched; siteList = r.sites; gChunks = r.chunks; gSupports = r.sup; gQueries = r.qs; toolsOk = r.tools;
+      onText(r.txt);
+    } else {
+      const bk = c.gm === 'gemini-3.5-flash-lite' ? 'gemini-3.6-flash' : 'gemini-3.5-flash-lite';
+      const tries = [[c.gm, true, false], [c.gm, false, false], [c.gm, false, true], [bk, false, true]];
+      let lastErr = null;
+      for (const [mdl, tl, pl] of tries){
+        try { searchedFlag = false; siteList = []; gChunks = []; gSupports = []; await streamGemini(q, onText, mdl, extra, tl, pl); lastErr = null; toolsOk = tl; break; }
+        catch (err){ lastErr = err; if (full || /API key|API_KEY/i.test(err.message || '')) break; }
+      }
+      if (lastErr) throw lastErr;
     }
-    if (lastErr) throw lastErr;
     if (!full.trim()) throw new Error('No answer came back. Please try again.');
     if (listMode) speechChunk(cleanSpeech(listSpeech(full)), id); else { flush(true); if (cut) speechChunk('The rest of the answer is on your screen, sir.', id); }
     speechEnd(id);
@@ -565,11 +623,12 @@ async function thinkStream(q, extra){
     let perItem = 0;
     if (searchedFlag && el && body && listMode && gSupports.length) perItem = renderText(body, full, itemLinks(full));
     const siteQ = wantsLinks(q) && !isList(q);
-    if (el && !perItem && (full.length > 120 || siteQ) && (siteList.length || needsWeb(q) || siteQ)){
+    if (el && !perItem && (full.length > 120 || siteQ) && (siteList.length || needsWeb(q) || siteQ || gQueries.length)){
       const n = document.createElement('div'); n.className = 'srcs';
       const h = document.createElement('div'); h.className = 'h';
       const add1 = (label, url) => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label; n.appendChild(a); };
       h.textContent = siteQ ? 'Website links' : (siteList.length ? 'Sources' : (toolsOk ? 'Find it online' : 'Web search was unavailable for this answer')); n.appendChild(h);
+      if (gQueries.length && !siteQ){ const qd = document.createElement('div'); qd.className = 'qs'; qd.textContent = 'Searched: ' + gQueries.slice(0, 5).join(' · '); n.appendChild(qd); }
       const subj = siteQ ? siteSubject(q) : '';
       const found = [];
       (full.match(/https?:\/\/[^\s)\]|}>"']+/g) || []).forEach(u => { u = u.replace(/[.,;:!?]+$/, ''); if (!found.includes(u)) found.push(u); });
@@ -609,7 +668,7 @@ async function thinkStream(q, extra){
   } catch(e){
     wait.remove();
     const fe = friendlyError(e); add('ai', fe); say(fe);
-  } finally { curImg = null; }
+  } finally { clearTimeout(slow); curImg = null; }
 }
 
 async function think(q, extra){
@@ -962,12 +1021,12 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; $('rm').value = c.rm; $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read','short'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
 $('test').onclick = () => { store.set('voice', $('vc').value); say('Good day, sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
