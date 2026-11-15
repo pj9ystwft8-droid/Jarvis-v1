@@ -36,6 +36,7 @@ header button{background:none;border:1px solid var(--line);color:var(--dim);bord
 .sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
 .alt{margin-top:8px;background:none;border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:14px}
 #bar{display:flex;gap:6px;align-items:center;padding:8px 10px;border-top:1px solid var(--line)}
+#disc{text-align:center;font-size:11px;color:var(--dim);opacity:.6;padding:0 12px calc(6px + env(safe-area-inset-bottom));position:relative;z-index:1}
 #txt{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
 #txt:focus{border-color:var(--arc)}
 #send{width:42px;height:42px;flex:none;border-radius:50%;border:none;background:var(--arc);color:var(--bg);display:flex;align-items:center;justify-content:center;padding:0}
@@ -132,7 +133,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15ah</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15al</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -142,6 +143,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <button id="mic" aria-label="Speak"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
   <button id="send" aria-label="Send"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
 </div>
+
+<div id="disc">Jarvis is an AI and can make mistakes.</div>
 
 <dialog id="dlg">
   <strong>Settings</strong>
@@ -542,7 +545,37 @@ function kmBetween(la1, lo1, la2, lo2){
   const h = Math.sin(dl / 2) ** 2 + Math.cos(r(la1)) * Math.cos(r(la2)) * Math.sin(dn / 2) ** 2;
   return 12742 * Math.asin(Math.sqrt(h));
 }
+const OSM_CATS = [
+  [/caf[eé]|coffee/i, ['amenity=cafe']], [/restaurant|eat|food|dinner|lunch/i, ['amenity=restaurant','amenity=fast_food']],
+  [/\b(bar|pub)s?\b/i, ['amenity=bar','amenity=pub']], [/pharmac|drugstore/i, ['amenity=pharmacy']], [/hospital|emergency/i, ['amenity=hospital']],
+  [/\batms?\b/i, ['amenity=atm']], [/\bbanks?\b/i, ['amenity=bank']], [/gas station|petrol|fuel/i, ['amenity=fuel']],
+  [/supermarket|grocer/i, ['shop=supermarket']], [/convenience|7.?eleven|corner (shop|store)/i, ['shop=convenience']],
+  [/\bmalls?\b|shopping (center|centre)/i, ['shop=mall']], [/hotel|hostel/i, ['tourism=hotel','tourism=hostel']], [/bakery|bakeries/i, ['shop=bakery']],
+  [/barber|hair ?salon|hairdress/i, ['shop=hairdresser']], [/gym|fitness/i, ['leisure=fitness_centre']], [/laundry|laundromat/i, ['shop=laundry','amenity=laundry']]
+];
+let lastNear = null;
+async function overpass(body){
+  for (const u of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']){
+    try { const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000); const r = await fetch(u, { method:'POST', body:'data=' + encodeURIComponent(body), headers:{'Content-Type':'application/x-www-form-urlencoded'}, signal: ac.signal }); clearTimeout(t); if (r.ok) return await r.json(); } catch(_){}
+  }
+  return null;
+}
+async function nearbyPlaces(subject, pos){
+  const sels = []; OSM_CATS.forEach(c => { if (c[0].test(subject)) c[1].forEach(x => sels.push('[' + x.split('=')[0] + '=' + x.split('=')[1] + ']')); });
+  if (!sels.length){ const w = subject.replace(/[^\w\s'&.-]/g, ' ').trim().replace(/\s+/g, '.*'); if (w) sels.push('["name"~"' + w + '",i]'); }
+  for (const R of [2500, 8000]){
+    const q = '[out:json][timeout:15];(' + sels.map(x => 'nwr' + x + '["name"](around:' + R + ',' + pos.lat + ',' + pos.lon + ');').join('') + ');out center tags 80;';
+    const j = await overpass(q); if (!j || !j.elements) continue;
+    const list = j.elements.map(e => { const t = e.tags || {}, la = e.lat || (e.center && e.center.lat), lo = e.lon || (e.center && e.center.lon); if (!la || !lo) return null;
+      const addr = [[t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' '), t['addr:city']].filter(Boolean).join(', ');
+      return { name: t.name, addr, lat: la, lon: lo, km: kmBetween(pos.lat, pos.lon, la, lo), hours: t.opening_hours || '', phone: t.phone || t['contact:phone'] || '', web: t.website || t['contact:website'] || '' }; }).filter(Boolean).sort((a, b) => a.km - b.km);
+    const seen = new Set(), out = []; list.forEach(x => { const k = x.name + '|' + x.lat.toFixed(3) + x.lon.toFixed(3); if (!seen.has(k)){ seen.add(k); out.push(x); } });
+    if (out.length) return out.slice(0, 8);
+  }
+  return [];
+}
 async function nearestPlaces(subject, pos){
+  try { const l = await nearbyPlaces(subject, pos); if (l.length) return l; } catch(_){}
   for (const d of [.05, .25]){
     const vb = [pos.lon - d, pos.lat + d, pos.lon + d, pos.lat - d].join(',');
     const j = await (await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&accept-language=en&limit=15&bounded=1&viewbox=' + vb + '&q=' + encodeURIComponent(subject))).json();
@@ -559,7 +592,7 @@ async function addNearest(el, q){
   try { pos = await getPos(); } catch(e){ pos = null; }
   if (pos){
     h.textContent = 'Nearest to you';
-    let list = []; try { list = await nearestPlaces(subject, pos); } catch(e){}
+    let list = []; if (lastNear && lastNear.subj === subject && lastNear.list.length) list = lastNear.list; else { try { list = await nearestPlaces(subject, pos); } catch(e){} }
     list.forEach(pl => link('\u{1F4CD} ' + pl.name + ' \u00B7 ' + (pl.km < 1 ? Math.round(pl.km * 1000) + ' m' : pl.km.toFixed(1) + ' km') + (pl.addr ? ' \u00B7 ' + pl.addr : ''), 'https://www.google.com/maps/place/' + encodeURIComponent(pl.name) + '/@' + pl.lat + ',' + pl.lon + ',18z'));
     link('\u{1F4CD} See all nearby ' + subject + ' on Google Maps', 'https://www.google.com/maps/search/' + encodeURIComponent(subject) + '/@' + pos.lat + ',' + pos.lon + ',15z');
   } else {
@@ -678,7 +711,7 @@ function listSpeech(t){
 const casualQ = /^\s*(?:hi|hello|hey|thanks?|thank you|good (?:morning|afternoon|evening|night)|ok(?:ay)?|cool|nice)\b[^?]{0,20}$|\b(?:who are you|your name|what can you do|how are you)\b/i;
 const isRecheck = q => history.length >= 2 && q.trim().split(/\s+/).length <= 30 && /\b(?:check again|search again|look again|double.?check|re-?check|try again|dig deeper|deep dive|more thorough|look it up|search (?:the )?(?:internet|online|web)|are you sure|i(?:'m| am) (?:sure|certain|positive)|verify (?:it|that|this)|(?:you(?:'re| are)|that(?:'s| is)|it(?:'s| is)|this is) (?:wrong|incorrect|not (?:right|true|correct)|a fact))\b/i.test(q);
 const isChat = q => /\b(how are you|how(?:'s| is) it going|how(?:'s| is) your day|tell me a joke|joke|i(?:'m| am) (?:bored|sad|tired|lonely|stressed|happy|anxious|worried|excited|upset|angry)|i feel|feeling (?:sad|down|lonely|bored|happy|tired)|talk to me|let(?:'s| us) (?:chat|talk)|chat with me|can we (?:chat|talk)|just (?:chat|talk)|wanna (?:chat|talk)|want to (?:chat|talk)|keep me company|are you (?:real|alive|happy|sad|lonely|my friend)|do you (?:like|feel|dream|get bored|have feelings)|good (?:morning|night)|i miss|kumusta|kwentuhan|chika|malungkot|pagod|nababagot|bored)\b/i.test(q) && !/\b(news|price|weather|score|who won|latest|release|how much|where is|near|nearby|directions?|restaurants?|hotels?|forecast|stock)\b/i.test(q);
-const needsResearch = q => !isChat(q) && !casualQ.test(q) && (isPlaceQ(q) || isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q));
+const needsResearch = q => !isChat(q) && !casualQ.test(q) && (isPlaceQ(q) || nearIntent(q) || isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q));
 const NEG = /\b(?:could(?:\s?not|n't) find|can(?:not|'t) find|unable to (?:find|verify|confirm|locate)|no (?:information|records?|evidence|results|reliable|mention|data)|not able to (?:find|verify|confirm)|did not find|do(?:es)? not have (?:any )?(?:information|data)|don't have (?:any )?(?:information|data)|could not verify)\b/i;
 const DEEPEN = 'IMPORTANT: do a deeper and more thorough search now. Run at least four different Google searches using alternative wording, exact names, other spellings or languages where relevant, official sources, news and forums. Do not repeat or defend any earlier answer. If the user said something is a fact, search specifically to confirm or refute that claim.';
 async function runResearch(q, extra, recheck, c, onStatus){
@@ -807,10 +840,20 @@ function makeTyper(body){
   return T;
 }
 async function thinkStream(q, extra){
+  lastNear = null;
+  const pre = (isPlaceQ(q) || nearIntent(q)) ? status('Finding your location…') : null, preSet = t => { if (pre){ const sp = pre.querySelector('span'); if (sp) sp.textContent = t; } };
+  if (isPlaceQ(q) || nearIntent(q)) extra = (extra ? extra + '\n' : '') + 'VERIFY BEFORE ANSWERING: for every place you intend to name, cross-check it at least three ways before you write it: (1) Google Maps results, (2) a web search for its exact name plus the city, and (3) the verified OpenStreetMap list if one is given. Confirm it exists, that the name is exact, that the address is right, and that it is still open. Drop any place you cannot confirm in at least two of these. It is far better to give fewer places, or say you could not verify one, than to name a place that may not exist.';
   if (nearIntent(q)){
-    try { getPos().catch(() => {}); } catch(e){}
-    const cp = store.get('pos', '');
-    if (cp){ try { const o = JSON.parse(cp); extra = (extra ? extra + '\n' : '') + 'The user is currently at latitude ' + o.lat.toFixed(4) + ', longitude ' + o.lon.toFixed(4) + '. For places, recommend the ones nearest to this location and say roughly how far each is.'; } catch(e){} }
+    let pos = null;
+    try { pos = await Promise.race([getPos(), new Promise((_, r) => setTimeout(r, 6000))]); } catch(e){ try { pos = JSON.parse(store.get('pos', '')); } catch(_){} }
+    if (pos){
+      const subj = placeSubject(q); let list = []; preSet('Checking OpenStreetMap for real places near you…');
+      try { list = await Promise.race([nearbyPlaces(subj, pos), new Promise(r => setTimeout(() => r([]), 14000))]); } catch(e){}
+      lastNear = { subj, list, pos };
+      extra = (extra ? extra + '\n' : '') + 'The user is at latitude ' + pos.lat.toFixed(4) + ', longitude ' + pos.lon.toFixed(4) + '. ' + (list.length
+        ? 'VERIFIED NEARBY PLACES from OpenStreetMap, real and sorted by distance (name | distance | address | hours | phone): ' + list.map(x => x.name + ' | ' + (x.km < 1 ? Math.round(x.km * 1000) + ' m' : x.km.toFixed(1) + ' km') + ' | ' + (x.addr || 'address not listed') + ' | ' + (x.hours || 'hours not listed') + ' | ' + (x.phone || 'no phone')).join(' ;; ') + '. STRICT RULE: recommend ONLY places from this verified list, nearest first, with the distances given. Never invent, guess or add any place, address, distance or opening hours that is not in this list or in your Google Maps and search results. If a detail is not listed, say it is not listed. Write each place as [[Name, City]].'
+        : 'No verified match was found within 8 km in OpenStreetMap. Do NOT invent any place. Say plainly that you could not verify one nearby, mention that map data may be incomplete, and point to the Google Maps link below.');
+    } else extra = (extra ? extra + '\n' : '') + 'The user location is unknown. Do NOT name any specific nearby place. Ask which city or area they are in, or tell them to allow location access.';
   }
   imgTag = '';
   const c = cfg();
@@ -818,8 +861,11 @@ async function thinkStream(q, extra){
   if (recheck){ const prev = history.slice().reverse().find(m => m.role === 'user'); extra = (extra ? extra + '\n' : '') + 'The user is disputing or asking you to verify your earlier answer. Their earlier question was: "' + (prev ? prev.text : '') + '". Ignore your earlier answer, which may be wrong, and research it again from scratch.'; }
   const chat = isChat(q) && !curImg && !isRecheck(q);
   const research = store.get('depth', 'deep') !== 'fast' && needsResearch(q) && !curImg && !chat;
-  const wait = status(research ? 'Researching the web…' : (needsWeb(q) && !chat ? 'Searching the web…' : 'Thinking…')), id = speechStart();
-  const slow = research ? setTimeout(() => { const sp = wait.querySelector('span'); if (sp && sp.textContent === 'Researching the web…') sp.textContent = 'Still researching, sir…'; }, 9000) : 0;
+  if (pre) pre.remove();
+  const wait = status(research ? ((isPlaceQ(q) || nearIntent(q)) ? 'Checking Google Maps…' : 'Researching the web…') : (needsWeb(q) && !chat ? 'Searching the web…' : 'Thinking…')), id = speechStart();
+  const phases = (isPlaceQ(q) || nearIntent(q)) ? ['Checking Google Maps…', 'Searching the web for the exact names and addresses…', 'Cross-checking each place against a second source…', 'Still verifying, sir. I would rather be right than quick…'] : [];
+  const phT = phases.map((t, i) => setTimeout(() => { const sp = wait.querySelector('span'); if (sp && wait.isConnected) sp.textContent = t; }, 800 + i * 7000));
+  const slow = research && !phases.length ? setTimeout(() => { const sp = wait.querySelector('span'); if (sp && /^(Researching the web…|Checking the map and the web…)$/.test(sp.textContent)) sp.textContent = 'Still researching, sir…'; }, 9000) : 0;
   let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false, typer = null;
   const listMode = isList(q), readAll = store.get('read2', 'full') === 'full', LIM = 420;
   let inQuote = false, atStart = true;
@@ -926,7 +972,7 @@ async function thinkStream(q, extra){
   } catch(e){
     wait.remove();
     const fe = friendlyError(e); add('ai', fe); say(fe);
-  } finally { clearTimeout(slow); curImg = null; if (typer) typer.stop(); }
+  } finally { clearTimeout(slow); phT.forEach(clearTimeout); curImg = null; if (typer) typer.stop(); }
 }
 
 async function think(q, extra){
