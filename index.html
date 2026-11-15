@@ -129,7 +129,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15r</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-15s</span></div><span class="by">by DMS (last update: November 15, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -811,11 +811,19 @@ async function thinkStream(q, extra){
   const slow = research ? setTimeout(() => { const sp = wait.querySelector('span'); if (sp && sp.textContent === 'Researching the web…') sp.textContent = 'Still researching, sir…'; }, 9000) : 0;
   let el = null, body = null, full = '', spoken = 0, spokenChars = 0, cut = false, toolsOk = false, typer = null;
   const listMode = isList(q), readAll = store.get('read2', 'full') === 'full', LIM = 420;
+  let inQuote = false, atStart = true;
   const speakPart = t => {
-    t.split(/(?<=[.!?])\s+|\n+/).forEach(sn => {
-      if (!sn.trim()) return;
-      if (!readAll && spokenChars >= LIM){ cut = true; return; }
-      spokenChars += sn.length; speechChunk(cleanSpeech(sn), id);
+    t.split(/(\n+)/).forEach(seg => {
+      if (/^\n+$/.test(seg)){ inQuote = false; atStart = true; return; }
+      if (!seg.trim()) return;
+      if (atStart && /^\s*>/.test(seg)) inQuote = true;
+      atStart = false;
+      if (inQuote) return;
+      seg.split(/(?<=[.!?])\s+/).forEach(sn => {
+        if (!sn.trim()) return;
+        if (!readAll && spokenChars >= LIM){ cut = true; return; }
+        spokenChars += sn.length; speechChunk(cleanSpeech(sn), id);
+      });
     });
   };
   const flush = final => {
