@@ -23,7 +23,7 @@ header button{background:none;border:1px solid var(--line);color:var(--dim);bord
 .ttl{display:flex;align-items:center;gap:8px}
 .mk{font:700 10px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.14em;color:var(--arc);border:1px solid rgba(111,211,255,.55);border-radius:4px;padding:3px 5px 3px 7px;opacity:.85}
 .by{font:500 11px/1 Rajdhani,"Arial Narrow",sans-serif;letter-spacing:.08em;color:var(--dim);opacity:.45;white-space:normal;line-height:1.25}
-#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.25) 7%,#000 30%)}
+#log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.35) 5%,#000 13%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.35) 5%,#000 13%)}
 .msg{max-width:94%;padding:14px 16px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word}
 .msg .body{white-space:normal}
 .me{align-self:flex-end;background:rgba(28,51,69,.9)}
@@ -146,7 +146,8 @@ log.addEventListener('wheel', () => { manualScroll = true; }, { passive:true });
 function followAnswer(el){
   if (manualScroll || !el) return;
   const max = log.scrollHeight - log.clientHeight;
-  log.scrollTop = Math.max(0, Math.min(max, el.offsetTop - 60));
+  const gap = Math.round(log.clientHeight * .16);
+  log.scrollTop = Math.max(0, Math.min(max, el.offsetTop - gap));
 }
 let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
 function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
