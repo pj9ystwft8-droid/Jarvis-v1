@@ -141,7 +141,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17j</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17k</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -328,6 +328,7 @@ function inline(parent, str){
   if (last < str.length) linkText(parent, str.slice(last));
 }
 function renderText(box, text, linksFn){
+  text = adr(text);
   box.textContent = '';
   let pos = 0, linked = 0, tbl = null;
   const flushT = () => {
@@ -392,7 +393,23 @@ function itemLinks(full){
     return out.slice(0, 2);
   };
 }
+function addr(){ return store.get('addr', 'sir'); }
+function adr(t){ if (typeof t !== 'string' || addr() === 'sir') return t; return t.replace(/\bsir\b/g, 'madam').replace(/\bSir\b/g, 'Madam'); }
+function detectAddr(q){
+  const f = /\b(?:i\s*am|i'm|im)\s+(?:a\s+|an\s+)?(?:she|woman|female|lady|girl|miss|ma'?am|madam)\b|\b(?:call me|address me as|refer to me as)\s+(?:ma'?am|madam|miss|lady)\b|\b(?:i\s*am|i'm|im)\s+not\s+(?:a\s+)?(?:he|man|male|guy|sir)\b|\b(?:don'?t|do not|stop)\s+(?:call(?:ing)?\s+me|address(?:ing)?\s+me\s+as)\s+(?:a\s+)?(?:sir|he|him|man|mister|mr)\b|\bnot a (?:he|sir|man|guy)\b|\bshe\/her\b|\bi use she\b|\bi\s*am\s+a\s+she\b/i.test(q);
+  if (f) return 'madam';
+  if (addr() === 'madam' && /\b(?:i\s*am|i'm|im)\s+(?:a\s+)?(?:he|man|male|guy)\b|\bcall me (?:sir|mister|mr)\b/i.test(q)) return 'sir';
+  return null;
+}
+function setAddr(a){
+  store.set('addr', a);
+  const key = 'Address the user as';
+  let fs = facts().filter(x => !x.startsWith(key));
+  fs.push(key + (a === 'madam' ? ' madam, never sir. She is a woman, use she and her.' : ' sir.'));
+  saveFacts(fs);
+}
 function add(cls, text, source){
+  if (cls !== 'me') text = adr(text);
   const d = document.createElement('div');
   d.className = 'msg ' + cls;
   if (cls === 'ai' && text){ const b = document.createElement('div'); b.className = 'body'; renderText(b, text); d.appendChild(b); }
@@ -474,6 +491,7 @@ function spPump(){
   }, 1200);
 }
 function speechChunk(text, id){
+  text = adr(text);
   text = text.trim();
   if (!text || !window.speechSynthesis || id !== sayId) return;
   if (text.length > 380){ let i = text.lastIndexOf(', ', 380); if (i < 150) i = text.lastIndexOf(' ', 380); if (i < 1) i = 380; speechChunk(text.slice(0, i), id); speechChunk(text.slice(i), id); return; }
@@ -527,6 +545,7 @@ function sysPrompt(){
   else base = base.replace('even then explain in English.', 'even then explain in English. EXCEPTION: if the user says, in any language, that they do not speak, read or understand English, then from that reply onward answer in the language the user is using, and begin the very first line of that reply with the tag [[LANG:Language name|BCP-47 code]], for example [[LANG:Tagalog|fil-PH]] or [[LANG:Spanish|es-ES]], with the reply after it. The tag contains only the language name and the code.');
   const sm = store.get('summary', '');
   if (sm) base += ' EARLIER IN THIS CONVERSATION, summarised: ' + sm;
+  if (addr() === 'madam') base += ' ADDRESS RULE, overrides everything above: the user is a woman. Always address her as madam, never as sir, and use she and her. Wherever these rules say sir, say madam.';
   const ls = lessons();
   if (ls.length) base += ' PAST CORRECTIONS FROM THE USER, do not repeat these mistakes: ' + ls.slice(-8).join(' ;; ') + '.';
   return base + (L ? '' : ' Remember: your whole reply must be in English unless the user has said they do not understand English.') + (simpleOn ? ' ' + SIMPLE_RULE : '') + ' If the user attaches a picture, look at it carefully and describe or explain what it shows. If the message contains a web link, read that page and explain what it is and what it says.' + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it. Never volunteer or mention any activation date, startup date, creation date or version, and do not mention today\'s date unless asked. Only if the user asks when you were created, activated or last updated, answer that you were created by DMS and were last updated on November 15, 2026.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
@@ -667,7 +686,7 @@ async function addNearest(el, q){
   }
   el.appendChild(box); followAnswer(el);
 }
-function status(label){ const d = document.createElement('div'); d.className = 'status'; const i = document.createElement('i'); const t = document.createElement('span'); t.textContent = label; d.appendChild(i); d.appendChild(t); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
+function status(label){ const d = document.createElement('div'); d.className = 'status'; const i = document.createElement('i'); const t = document.createElement('span'); t.textContent = adr(label); d.appendChild(i); d.appendChild(t); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
 let searchedFlag = false, siteList = [], gChunks = [], gSupports = [], gQueries = [], gMaps = [];
 const needsWeb = q => /\b(news|latest|today|tonight|current|currently|recent|recently|price|stock|score|who won|results?|released?|update|trending|president|happening|who|what|when|where|which|how many|how much|why|is it|are there|tell me about|search|look up|find)\b/i.test(q) && q.trim().split(/\s+/).length > 2;
 async function streamGemini(q, cb, model, extra, useTools, plain){
@@ -797,9 +816,14 @@ async function understand(q, c){
 const planText = o => 'UNDERSTANDING OF THE QUESTION (worked out from the whole conversation, so stay on exactly this): the user really wants to know: ' + o.asked + (o.terms && o.terms.length ? ' Keep these exact terms and spellings in your searches: ' + o.terms.join(', ') + '.' : '') + ' Do not describe how you understood the question unless it is ambiguous. ' + (o.queries && o.queries.length ? ' Run these searches, and add your own variations: ' + o.queries.slice(0, 5).join(' | ') + '.' : '') + (o.ambiguous ? ' The question could mean: ' + o.ambiguous + ' Start your answer with ONE plain sentence of under 15 words, such as I took this to mean: followed by your reading. Do not explain or defend that reading. Offer the other reading only if the two are about equally likely, in one short sentence at the end.' : '');
 const VERIFY = 'FACT-CHECK PASS. Below is a DRAFT answer to the question. Check every factual claim, name, number, date, address, price and link in it with fresh Google searches, deliberately using sources different from the ones the draft probably relied on. Correct anything that is wrong, remove anything you cannot confirm in at least two sources, and keep what is confirmed. If the draft misread the question, fix that. Return the complete final answer in the same format as the draft, keeping the [[Place, City]] tags, links and bottom line, and do not mention that this is a revision. Keep the final section headed ## Why I think so, and update its bullets so they describe what your checking actually found, including any correction you made.\nDRAFT:\n';
 const SEARCH_RULE = 'GOOGLE SEARCH RULES: first search Google with the user own words, exactly as they asked it, because the answer is usually within the top five results. Open and read those top five results and compare what they say. Then search again with the exact names, terms and alternative wording to cross-check, and prefer official sites, reputable news, and primary sources over forums or guesses. Do not answer from memory. Do not answer until at least two independent sources agree. If the top results disagree, say so and explain which is more reliable. If they do not answer the question, say plainly what you found instead of guessing. REASONING SECTION: always finish your answer with a final section headed exactly ## Why I think so, with at most three bullet lines, each one short plain sentence of under 15 words, in simple everyday words: Sources: the names of the sources you used. Found: what they said, in a few words. Confidence: High, Medium or Low, with a short reason. Never defend or argue for your answer, never write long explanations, and never name a source you did not read.';
+let lastAck = -1;
+function ack(){
+  const a = ['On it, sir\u2026','Right away, sir\u2026','Processing your request, sir\u2026','Consider it done, sir\u2026','Working on it, sir\u2026','At once, sir\u2026','One moment, sir\u2026','Allow me a moment, sir\u2026','Certainly, sir\u2026','Looking into it, sir\u2026','Straight away, sir\u2026','Leave it with me, sir\u2026'];
+  let i; do { i = Math.floor(Math.random() * a.length); } while (i === lastAck && a.length > 1); lastAck = i; return a[i];
+}
 async function runResearch(q, extra, recheck, c, onStatus){
   const brief = briefNext; briefNext = false;
-  onStatus('Understanding your question…');
+  onStatus(ack());
   const plan = pendingPlan || await understand(q, c); pendingPlan = null;
   extra = (extra ? extra + '\n' : '') + (brief ? SEARCH_RULE.replace(/ REASONING SECTION:.*$/, '') : SEARCH_RULE);
   if (plan){ extra = extra + '\n' + planText(plan); onStatus('Scanning the web…'); }
@@ -1296,7 +1320,7 @@ function correct(q){
   picTopicNow = ''; think(u.text, extra);
 }
 async function routeAndRun(q){
-  const w = status('Understanding your question…');
+  const w = status(ack());
   let plan = null; try { plan = await understand(q, cfg()); } catch(e){}
   w.remove();
   pendingPlan = plan;
@@ -1341,6 +1365,9 @@ function submit(q){
   if (sent){ const im = document.createElement('img'); im.src = sent.url; im.style.cssText = 'display:block;max-width:100%;max-height:160px;border-radius:8px;margin-top:6px'; mine.appendChild(im); }
   const low = q.toLowerCase();
   let m;
+  { const na = detectAddr(q);
+    if (na){ setAddr(na); const ok = na === 'madam' ? 'My apologies, madam. I shall address you correctly from now on, and I have made a note so it stays that way.' : 'Understood, sir. I shall address you as sir from now on.';
+      if (q.split(/\s+/).length <= 14) return reply(ok); add('ai', ok); } }
   if (sent || urlIn(q).length){ picTopicNow = ''; think(q); return; }
   if ((m = q.match(/^(?:please\s+)?remember(?: that)?\s+(.+)/i))){
     const a = facts(); a.push(m[1].replace(/[.!]+$/, '')); saveFacts(a);
