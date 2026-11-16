@@ -36,6 +36,8 @@ header button{background:none;border:1px solid var(--line);color:var(--dim);bord
 .sys{align-self:center;color:var(--dim);font-size:14px;text-align:center}
 .alt{margin-top:8px;background:none;border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:5px 10px;font-size:14px}
 #bar{display:flex;gap:6px;align-items:center;padding:8px 10px;border-top:1px solid var(--line)}
+
+.fbk{display:block;margin:8px 0 0;background:none;border:0;color:var(--dim);opacity:.55;font-size:12px;padding:4px 0;cursor:pointer}
 #disc{text-align:center;font-size:11px;color:var(--dim);opacity:.6;padding:0 12px calc(6px + env(safe-area-inset-bottom));position:relative;z-index:1}
 #txt{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
 #txt:focus{border-color:var(--arc)}
@@ -133,7 +135,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-16i</span></div><span class="by">by DMS (last update: November 16, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-16j</span></div><span class="by">by DMS (last update: November 16, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -166,6 +168,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
   <div class="row"><button id="loc">Allow location</button></div>
+  <div id="usage" style="font-size:12px;color:var(--dim);line-height:1.5;margin:6px 0 2px"></div>
   <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
   <div class="row"><button id="cancel">Close</button><button id="save" class="go">Save</button></div>
 </dialog>
@@ -187,8 +190,36 @@ function followAnswer(el){
   const gap = Math.round(log.clientHeight * .16);
   log.scrollTop = Math.max(0, Math.min(max, el.offsetTop - gap));
 }
-let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-12); } catch(e){ return []; } })();
-function saveHist(){ store.set('hist', JSON.stringify(history.slice(-12))); }
+/* ---------- free-quota meter: counts Gemini calls made from this phone ---------- */
+const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+function usageGet(){ try { const u = JSON.parse(store.get('usage', '{}')); return u.d === dayKey() ? u : { d: dayKey(), n: 0, m: {}, hit: 0, t: 0 }; } catch(e){ return { d: dayKey(), n: 0, m: {}, hit: 0, t: 0 }; } }
+function usageBump(url, p){
+  const u = usageGet(), mm = /models\/([^:?\/]+)/.exec(url), name = mm ? mm[1] : 'other';
+  u.n++; u.m[name] = (u.m[name] || 0) + 1; store.set('usage', JSON.stringify(u));
+  Promise.resolve(p).then(r => { if (r && r.status === 429){ const v = usageGet(); v.hit++; v.t = Date.now(); store.set('usage', JSON.stringify(v)); } }).catch(() => {});
+}
+(() => { const of = window.fetch; window.fetch = function(u){ try { const url = String((u && u.url) || u); const p = of.apply(this, arguments); if (/generativelanguage\.googleapis\.com\/.*:(?:stream)?[gG]enerateContent/.test(url)) usageBump(url, p); return p; } catch(e){ return of.apply(this, arguments); } }; })();
+function usageText(){
+  const u = usageGet(), parts = Object.keys(u.m).map(k => k + ': ' + u.m[k]).join(', ');
+  return 'Gemini calls today on this phone: ' + u.n + (parts ? ' (' + parts + ')' : '') + '. A thorough answer uses about 3. ' + (u.hit ? 'The free limit was hit ' + u.hit + ' time' + (u.hit > 1 ? 's' : '') + ' today, last at ' + new Date(u.t).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '. ' : 'No limit hit today. ') + 'Google does not publish the exact free limit, and it resets daily.';
+}
+let history = (() => { try { return JSON.parse(store.get('hist','[]')).slice(-24); } catch(e){ return []; } })();
+function saveHist(){ store.set('hist', JSON.stringify(history.slice(-24))); }
+let compacting = false;
+async function compact(){
+  if (history.length <= 16 || compacting) return; compacting = true;
+  const c = cfg(), old = history.slice(0, history.length - 10);
+  try {
+    if (!c.gk) throw new Error('no key');
+    const prompt = 'Update the running summary of a conversation between a user and an assistant called Jarvis. Keep names, decisions, preferences, open questions, and the important facts and answers. Drop small talk and wording. Write plain English in under 120 words.\nCurrent summary: ' + (store.get('summary', '') || '(none)') + '\nOlder messages to fold in:\n' + old.map(m => (m.role === 'user' ? 'User: ' : 'Jarvis: ') + String(m.text).replace(/\s+/g, ' ').slice(0, 300)).join('\n');
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), 15000);
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, signal: ac.signal, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: prompt }] }], generationConfig:{ maxOutputTokens: 400 } }) });
+    clearTimeout(t); if (!r.ok) throw new Error('summary failed');
+    const j = await r.json(), txt = (((j.candidates || [])[0] || {}).content || {}).parts || [], sum = txt.map(x => x.text || '').join('').trim();
+    if (sum.length > 20){ store.set('summary', sum.slice(0, 900)); history = history.slice(-10); saveHist(); }
+  } catch(_){ if (history.length > 24){ history = history.slice(-24); saveHist(); } }
+  compacting = false;
+}
 
 const geoCache = new Map(), geoQ = []; let geoBusy = false;
 const normG = w => String(w).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
@@ -460,12 +491,17 @@ function takeImg(t){
   const u = t.replace(re, '').replace(/\[\[IMG:?[^\]]*$/i, '').replace(/\[\[I(?:M(?:G)?)?$/i, '');
   return (any || u !== t) ? u.replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '') : t;
 }
+const lessons = () => { try { return JSON.parse(store.get('lessons', '[]')); } catch(e){ return []; } };
 function sysPrompt(){
   const f = facts();
   const L = curLang();
   let base = BASE_SYSTEM;
   if (L) base = base.replace(/LANGUAGE RULE[\s\S]*?even then explain in English\./, 'LANGUAGE RULE, the most important rule: the user has told you they do not speak or understand English. Reply entirely in ' + L.name + ' (language code ' + L.code + '), in simple, clear words, using English only for names and technical terms. Begin the very first line of every reply with the tag [[LANG:' + L.name + '|' + L.code + ']] and put the reply after it. If the user asks to go back to English, begin with [[LANG:English|en-GB]] and answer in English.');
   else base = base.replace('even then explain in English.', 'even then explain in English. EXCEPTION: if the user says, in any language, that they do not speak, read or understand English, then from that reply onward answer in the language the user is using, and begin the very first line of that reply with the tag [[LANG:Language name|BCP-47 code]], for example [[LANG:Tagalog|fil-PH]] or [[LANG:Spanish|es-ES]], with the reply after it. The tag contains only the language name and the code.');
+  const sm = store.get('summary', '');
+  if (sm) base += ' EARLIER IN THIS CONVERSATION, summarised: ' + sm;
+  const ls = lessons();
+  if (ls.length) base += ' PAST CORRECTIONS FROM THE USER, do not repeat these mistakes: ' + ls.slice(-8).join(' ;; ') + '.';
   return base + (L ? '' : ' Remember: your whole reply must be in English unless the user has said they do not understand English.') + (simpleOn ? ' ' + SIMPLE_RULE : '') + ' If the user attaches a picture, look at it carefully and describe or explain what it shows. If the message contains a web link, read that page and explain what it is and what it says.' + ' The current date and time right now is ' + nowText() + '. Use this exact clock for any question about the day, date or time; never guess it. Never volunteer or mention any activation date, startup date, creation date or version, and do not mention today\'s date unless asked. Only if the user asks when you were created, activated or last updated, answer that you were created by DMS and were last updated on November 15, 2026.' + (f.length ? ' Known facts about the user, to use naturally when relevant: ' + f.join('; ') + '.' : '');
 }
 
@@ -585,14 +621,15 @@ async function nearestPlaces(subject, pos){
   return [];
 }
 async function addNearest(el, q){
-  const subject = placeSubject(q);
+  const named = lastNear && lastNear.named ? lastNear : null;
+  const subject = named ? named.subj : placeSubject(q);
   const box = document.createElement('div'); box.className = 'srcs';
   const h = document.createElement('div'); h.className = 'h'; box.appendChild(h);
   const link = (label, url) => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label; box.appendChild(a); };
   let pos = null;
-  try { pos = await getPos(); } catch(e){ pos = null; }
+  try { pos = named ? named.pos : await getPos(); } catch(e){ pos = null; }
   if (pos){
-    h.textContent = 'Nearest to you';
+    h.textContent = named ? 'Nearest to the place you named' : 'Nearest to you';
     let list = []; if (lastNear && lastNear.subj === subject && lastNear.list.length) list = lastNear.list; else { try { list = await nearestPlaces(subject, pos); } catch(e){} }
     list.forEach(pl => link('\u{1F4CD} ' + pl.name + ' \u00B7 ' + (pl.km < 1 ? Math.round(pl.km * 1000) + ' m' : pl.km.toFixed(1) + ' km') + (pl.addr ? ' \u00B7 ' + pl.addr : ''), 'https://www.google.com/maps/place/' + encodeURIComponent(pl.name) + '/@' + pl.lat + ',' + pl.lon + ',18z'));
     link('\u{1F4CD} See all nearby ' + subject + ' on Google Maps', 'https://www.google.com/maps/search/' + encodeURIComponent(subject) + '/@' + pos.lat + ',' + pos.lon + ',15z');
@@ -717,9 +754,10 @@ const MEDIA_RULE = 'SHOW, EPISODE AND CLIP IDENTIFICATION RULES, follow them str
 const needsResearch = q => !isChat(q) && !casualQ.test(q);
 const NEG = /\b(?:could(?:\s?not|n't) find|can(?:not|'t) find|unable to (?:find|verify|confirm|locate)|no (?:information|records?|evidence|results|reliable|mention|data)|not able to (?:find|verify|confirm)|did not find|do(?:es)? not have (?:any )?(?:information|data)|don't have (?:any )?(?:information|data)|could not verify)\b/i;
 const DEEPEN = 'IMPORTANT: do a deeper and more thorough search now. Run at least four different Google searches using alternative wording, exact names, other spellings or languages where relevant, official sources, news and forums. Do not repeat or defend any earlier answer. If the user said something is a fact, search specifically to confirm or refute that claim.';
+let pendingPlan = null, forcePos = null, forceSubj = '';
 async function understand(q, c){
   const hist = history.slice(-6).map(m => (m.role === 'user' ? 'User: ' : 'Jarvis: ') + String(m.text).slice(0, 350)).join('\n');
-  const prompt = 'You prepare a research plan for an assistant. Read the conversation and the new question. Reply with JSON only, in this exact shape: {"asked":"one sentence stating what the user really wants to know, resolving words like it, that, there or him from the conversation","terms":["the exact names, words and spellings the user used, unchanged"],"queries":["five web search queries. The first must be the user question worded exactly as a person would type it into Google. The others use the exact terms, alternative wording, and one aimed at official or primary sources"],"ambiguous":"empty string, or one sentence naming the two most likely meanings if the question could reasonably mean different things"}. The user may write in Taglish or another language; understand it and write the plan in English.\nConversation so far:\n' + (hist || '(none)') + '\nNew question: ' + q;
+  const prompt = 'You prepare a research plan for an assistant. Read the conversation and the new question. Reply with JSON only, in this exact shape: {"asked":"one sentence stating what the user really wants to know, resolving words like it, that, there or him from the conversation","terms":["the exact names, words and spellings the user used, unchanged"],"queries":["five web search queries. The first must be the user question worded exactly as a person would type it into Google. The others use the exact terms, alternative wording, and one aimed at official or primary sources"],"ambiguous":"empty string, or one sentence naming the two most likely meanings if the question could reasonably mean different things","tool":"one of: weather (forecast, rain, temperature), places (finding shops, restaurants or other businesses or attractions), pictures (the user wants to see photos), none","place":"the city or area the user named, exactly as they wrote it, for weather or places; empty string if they did not name one","subject":"for places, the kind of place or business wanted; for pictures, the thing to show; otherwise empty","when":"for weather, the time or time window the user asked about, such as today 13:00 to 14:30; otherwise empty"}. The user may write in Taglish or another language; understand it and write the plan in English.\nConversation so far:\n' + (hist || '(none)') + '\nNew question: ' + q;
   try {
     const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000);
     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, signal: ac.signal,
@@ -734,7 +772,7 @@ const VERIFY = 'FACT-CHECK PASS. Below is a DRAFT answer to the question. Check 
 const SEARCH_RULE = 'GOOGLE SEARCH RULES: first search Google with the user own words, exactly as they asked it, because the answer is usually within the top five results. Open and read those top five results and compare what they say. Then search again with the exact names, terms and alternative wording to cross-check, and prefer official sites, reputable news, and primary sources over forums or guesses. Do not answer from memory. Do not answer until at least two independent sources agree. If the top results disagree, say so and explain which is more reliable. If they do not answer the question, say plainly what you found instead of guessing. REASONING SECTION: always finish your answer with a final section headed exactly ## Why I think so, with at most three bullet lines, each one short plain sentence of under 15 words, in simple everyday words: Sources: the names of the sources you used. Found: what they said, in a few words. Confidence: High, Medium or Low, with a short reason. Never defend or argue for your answer, never write long explanations, and never name a source you did not read.';
 async function runResearch(q, extra, recheck, c, onStatus){
   onStatus('Understanding your question…');
-  const plan = await understand(q, c);
+  const plan = pendingPlan || await understand(q, c); pendingPlan = null;
   extra = (extra ? extra + '\n' : '') + SEARCH_RULE;
   if (plan){ extra = extra + '\n' + planText(plan); if (plan.queries && plan.queries[0]) onStatus('Searching: ' + String(plan.queries[0]).slice(0, 60) + '…'); }
   const snap = (txt, tools) => ({ txt, tools, searched: searchedFlag, sites: siteList.slice(), chunks: gChunks, sup: gSupports, qs: gQueries.slice(), maps: gMaps.slice() });
@@ -880,18 +918,19 @@ async function thinkStream(q, extra){
   if (isMediaQ(q) || (history.length && isMediaQ(history.slice().reverse().map(m => m.text).slice(0, 3).join(' ')) && q.trim().split(/\s+/).length < 14)) extra = (extra ? extra + '\n' : '') + MEDIA_RULE;
   const pre = (isPlaceQ(q) || nearIntent(q)) ? status('Finding your location…') : null, preSet = t => { if (pre){ const sp = pre.querySelector('span'); if (sp) sp.textContent = t; } };
   if (isPlaceQ(q) || nearIntent(q)) extra = (extra ? extra + '\n' : '') + 'VERIFY BEFORE ANSWERING: for every place you intend to name, cross-check it at least three ways before you write it: (1) Google Maps results, (2) a web search for its exact name plus the city, and (3) the verified OpenStreetMap list if one is given. Confirm it exists, that the name is exact, that the address is right, and that it is still open. Drop any place you cannot confirm in at least two of these. It is far better to give fewer places, or say you could not verify one, than to name a place that may not exist.';
-  if (nearIntent(q)){
-    let pos = null;
-    try { pos = await Promise.race([getPos(), new Promise((_, r) => setTimeout(r, 6000))]); } catch(e){ try { pos = JSON.parse(store.get('pos', '')); } catch(_){} }
+  if (nearIntent(q) || forcePos){
+    let pos = forcePos; const isNamed = !!forcePos;
+    if (!pos) try { pos = await Promise.race([getPos(), new Promise((_, r) => setTimeout(r, 6000))]); } catch(e){ try { pos = JSON.parse(store.get('pos', '')); } catch(_){} }
     if (pos){
-      const subj = placeSubject(q); let list = []; preSet('Checking OpenStreetMap for real places near you…');
+      const subj = forceSubj || placeSubject(q); let list = []; preSet('Checking OpenStreetMap for real places near you…');
       try { list = await Promise.race([nearbyPlaces(subj, pos), new Promise(r => setTimeout(() => r([]), 14000))]); } catch(e){}
-      lastNear = { subj, list, pos };
-      extra = (extra ? extra + '\n' : '') + 'The user is at latitude ' + pos.lat.toFixed(4) + ', longitude ' + pos.lon.toFixed(4) + '. ' + (list.length
+      lastNear = { subj, list, pos, named: isNamed };
+      extra = (extra ? extra + '\n' : '') + (isNamed ? 'The search area is the place the user named, around latitude ' : 'The user is at latitude ') + pos.lat.toFixed(4) + ', longitude ' + pos.lon.toFixed(4) + '. ' + (list.length
         ? 'VERIFIED NEARBY PLACES from OpenStreetMap, real and sorted by distance (name | distance | address | hours | phone): ' + list.map(x => x.name + ' | ' + (x.km < 1 ? Math.round(x.km * 1000) + ' m' : x.km.toFixed(1) + ' km') + ' | ' + (x.addr || 'address not listed') + ' | ' + (x.hours || 'hours not listed') + ' | ' + (x.phone || 'no phone')).join(' ;; ') + '. STRICT RULE: recommend ONLY places from this verified list, nearest first, with the distances given. Never invent, guess or add any place, address, distance or opening hours that is not in this list or in your Google Maps and search results. If a detail is not listed, say it is not listed. Write each place as [[Name, City]].'
         : 'No verified match was found within 8 km in OpenStreetMap. Do NOT invent any place. Say plainly that you could not verify one nearby, mention that map data may be incomplete, and point to the Google Maps link below.');
     } else extra = (extra ? extra + '\n' : '') + 'The user location is unknown. Do NOT name any specific nearby place. Ask which city or area they are in, or tell them to allow location access.';
   }
+  forcePos = null; forceSubj = '';
   imgTag = '';
   const c = cfg();
   const recheck = isRecheck(q);
@@ -994,8 +1033,8 @@ async function thinkStream(q, extra){
       g.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(picTopic(q)); g.textContent = '\u{1F4CD} Open in Google Maps'; el.appendChild(g);
     }
     const prior = history.slice();
-    history.push({ role:'user', text:q }, { role:'ai', text:full });
-    history = history.slice(-12); saveHist(); learn(q, full);
+    history.push({ role:'user', text:q }, { role:'ai', text:full }); setTimeout(addFeedback, 2500);
+    history = history.slice(-24); saveHist(); learn(q, full); compact();
     if (c.ok){
       const b = document.createElement('button');
       b.className = 'alt'; b.textContent = 'Not convinced';
@@ -1040,8 +1079,8 @@ async function think(q, extra){
       b.onclick = () => { b.remove(); add('ai', other, otherName); say(other); };
       el.appendChild(b);
     }
-    history.push({ role:'user', text:q }, { role:'ai', text:best });
-    history = history.slice(-12); saveHist(); learn(q, best);
+    history.push({ role:'user', text:q }, { role:'ai', text:best }); setTimeout(addFeedback, 2500);
+    history = history.slice(-24); saveHist(); learn(q, best); compact();
     say(best);
   } catch(e){
     wait.remove();
@@ -1073,9 +1112,9 @@ async function geocode(city){
   }
   throw new Error('I could not find a place called ' + city + ', sir.');
 }
-async function weatherFor(q){
+async function weatherFor(q, place){
   const m = q.match(/\b(?:in|for|near|at)\s+(?!(?:the|my|this|here|there|around|about|noon|night|home|least|once|all|a|an|\d)\b)([\p{L}][\p{L}'. -]{2,40})/iu);
-  const city = m ? m[1].trim().replace(/\s+(?:at|around|on|by|from|between|until|till|today|tomorrow|tonight|this|next|now|please|and|if|will|with|during|after|before|how|what|is|it|can|check)\b.*$/i, '').trim() : '';
+  const city = typeof place === 'string' ? place.trim() : m ? m[1].trim().replace(/\s+(?:at|around|on|by|from|between|until|till|today|tomorrow|tonight|this|next|now|please|and|if|will|with|during|after|before|how|what|is|it|can|check)\b.*$/i, '').trim() : '';
   const pos = city ? await geocode(city) : await getPos();
   const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + pos.lat + '&longitude=' + pos.lon + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=7';
   const j = await (await fetch(u)).json();
@@ -1218,6 +1257,39 @@ function setReminder(r){
 
 /* ---------- Input ---------- */
 function reply(m){ add('ai', m); say(m); }
+const isCorrection = q => q.length < 220 && /\b(?:you(?:'re| are) wrong|that(?:'s| is) (?:wrong|incorrect|not (?:right|correct|true))|(?:this|it) is (?:wrong|incorrect)|(?:is|was) wrong|not correct|incorrect|false|mali (?:yan|yun|ka|iyan|iyon)|hindi (?:yan|yun|iyan|iyon|tama|totoo)|wrong answer|no,? (?:it(?:'s| is)|that(?:'s| is)) not)\b/i.test(q);
+function addLesson(text){ const a = lessons(); a.push(String(text).slice(0, 230)); store.set('lessons', JSON.stringify(a.slice(-15))); }
+function correct(q){
+  const u = history.slice().reverse().find(m => m.role === 'user'), a = history.slice().reverse().find(m => m.role === 'ai');
+  if (!u || !a){ think(q); return; }
+  addLesson('Asked "' + u.text.slice(0, 80) + '", my answer "' + a.text.replace(/\s+/g, ' ').slice(0, 70) + '" was wrong. The user said: ' + q.slice(0, 80));
+  const extra = 'CORRECTION FROM THE USER: they say your previous answer was wrong. What they said: "' + q + '". Your previous answer was: "' + a.text.replace(/\s+/g, ' ').slice(0, 500) + '". Do not repeat it and do not defend it. Treat what the user says as evidence, because they may know something you do not. Search again from scratch with new queries, read different sources, and find what is actually true. If you still cannot confirm it, say so plainly and say what would settle it.';
+  picTopicNow = ''; think(u.text, extra);
+}
+async function routeAndRun(q){
+  const w = status('Understanding your question…');
+  let plan = null; try { plan = await understand(q, cfg()); } catch(e){}
+  w.remove();
+  pendingPlan = plan;
+  const tool = plan && plan.tool;
+  if (tool === 'weather' || (!plan && isWeather(q))){
+    const w2 = add('sys', 'Checking the forecast…');
+    return weatherFor(q, plan ? String(plan.place || '') : undefined).then(info => { w2.remove(); pendingPlan = plan; think(q, 'Live weather data. Use only this data. Answer exactly what was asked' + (plan && plan.when ? ', which is about ' + plan.when : '') + ', by reading the matching hourly lines, and give rain amounts in mm with the chance of rain. If the user named a particular website such as wetter.com, say plainly that this data comes from Open-Meteo and not from that site. Keep it to a few short sentences and give temperatures in degrees Celsius: ' + info); })
+      .catch(e => { w2.remove(); reply(e.message || 'I could not reach the weather service, sir.'); });
+  }
+  if (tool === 'places' && plan.place){
+    try { forcePos = await geocode(String(plan.place)); forceSubj = String(plan.subject || '') || placeSubject(q); } catch(e){ forcePos = null; }
+  }
+  picTopicNow = (tool === 'pictures' && plan.subject) ? String(plan.subject) : (wantsPics(q) ? picTopic(q) : '');
+  think(q);
+}
+function addFeedback(){
+  document.querySelectorAll('.fbk').forEach(x => x.remove());
+  const last = [...log.querySelectorAll('.msg.ai')].pop(); if (!last || last.querySelector('.fbk')) return;
+  const b = document.createElement('button'); b.className = 'fbk'; b.textContent = '\u{1F44E} Wrong?'; b.title = 'Tell Jarvis this answer was wrong and he will search again';
+  b.onclick = () => { b.remove(); if (!busy){ unlockSpeech(); submit('That answer was wrong. Please check again.'); } };
+  last.appendChild(b);
+}
 function submit(q){
   q = q.trim();
   if (!q && attach) q = 'Explain what this picture shows.';
@@ -1245,6 +1317,8 @@ function submit(q){
   }
   const r = parseReminder(q);
   if (r) return setReminder(r);
+  if (history.length >= 2 && isCorrection(q)){ return correct(q); }
+  if (!(simpleOn) && cfg().gk && !isChat(q) && !casualQ.test(q) && q.split(/\s+/).length >= 3){ return routeAndRun(q); }
   if (isWeather(q)){
     const w = add('sys', 'Checking the forecast…');
     weatherFor(q).then(info => { w.remove(); think(q, 'Live weather data. Use only this data. Answer exactly what was asked, including any time window the user named by reading the matching hourly lines, and give rain amounts in mm with the chance of rain. If the user named a particular website such as wetter.com, say plainly that this data comes from Open-Meteo and not from that site. Keep it to a few short sentences and give temperatures in degrees Celsius: ' + info); })
@@ -1514,7 +1588,7 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
+$('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
   $('sp').value = store.get('sp','1.08'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
