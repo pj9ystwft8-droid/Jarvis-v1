@@ -133,7 +133,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-16a</span></div><span class="by">by DMS (last update: November 16, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-16b</span></div><span class="by">by DMS (last update: November 16, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -711,10 +711,27 @@ function listSpeech(t){
 const casualQ = /^\s*(?:hi|hello|hey|thanks?|thank you|good (?:morning|afternoon|evening|night)|ok(?:ay)?|cool|nice)\b[^?]{0,20}$|\b(?:who are you|your name|what can you do|how are you)\b/i;
 const isRecheck = q => history.length >= 2 && q.trim().split(/\s+/).length <= 30 && /\b(?:check again|search again|look again|double.?check|re-?check|try again|dig deeper|deep dive|more thorough|look it up|search (?:the )?(?:internet|online|web)|are you sure|i(?:'m| am) (?:sure|certain|positive)|verify (?:it|that|this)|(?:you(?:'re| are)|that(?:'s| is)|it(?:'s| is)|this is) (?:wrong|incorrect|not (?:right|true|correct)|a fact))\b/i.test(q);
 const isChat = q => /\b(how are you|how(?:'s| is) it going|how(?:'s| is) your day|tell me a joke|joke|i(?:'m| am) (?:bored|sad|tired|lonely|stressed|happy|anxious|worried|excited|upset|angry)|i feel|feeling (?:sad|down|lonely|bored|happy|tired)|talk to me|let(?:'s| us) (?:chat|talk)|chat with me|can we (?:chat|talk)|just (?:chat|talk)|wanna (?:chat|talk)|want to (?:chat|talk)|keep me company|are you (?:real|alive|happy|sad|lonely|my friend)|do you (?:like|feel|dream|get bored|have feelings)|good (?:morning|night)|i miss|kumusta|kwentuhan|chika|malungkot|pagod|nababagot|bored)\b/i.test(q) && !/\b(news|price|weather|score|who won|latest|release|how much|where is|near|nearby|directions?|restaurants?|hotels?|forecast|stock)\b/i.test(q);
-const needsResearch = q => !isChat(q) && !casualQ.test(q) && (isPlaceQ(q) || nearIntent(q) || isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q));
+const needsResearch = q => !isChat(q) && !casualQ.test(q) && (isPlaceQ(q) || nearIntent(q) || isRecheck(q) || wantsLinks(q) || isList(q) || needsWeb(q) || /\?\s*$/.test(q.trim()) || q.trim().split(/\s+/).length >= 7) && !/^\s*(?:what(?:'s| is)\s+)?[\d\s+\-*\/x().,%^]+\??\s*$/i.test(q);
 const NEG = /\b(?:could(?:\s?not|n't) find|can(?:not|'t) find|unable to (?:find|verify|confirm|locate)|no (?:information|records?|evidence|results|reliable|mention|data)|not able to (?:find|verify|confirm)|did not find|do(?:es)? not have (?:any )?(?:information|data)|don't have (?:any )?(?:information|data)|could not verify)\b/i;
 const DEEPEN = 'IMPORTANT: do a deeper and more thorough search now. Run at least four different Google searches using alternative wording, exact names, other spellings or languages where relevant, official sources, news and forums. Do not repeat or defend any earlier answer. If the user said something is a fact, search specifically to confirm or refute that claim.';
+async function understand(q, c){
+  const hist = history.slice(-6).map(m => (m.role === 'user' ? 'User: ' : 'Jarvis: ') + String(m.text).slice(0, 350)).join('\n');
+  const prompt = 'You prepare a research plan for an assistant. Read the conversation and the new question. Reply with JSON only, in this exact shape: {"asked":"one sentence stating what the user really wants to know, resolving words like it, that, there or him from the conversation","terms":["the exact names, words and spellings the user used, unchanged"],"queries":["five different web search queries that would find the answer, using the exact terms, alternative wording and one aimed at official or primary sources"],"ambiguous":"empty string, or one sentence naming the two most likely meanings if the question could reasonably mean different things"}. The user may write in Taglish or another language; understand it and write the plan in English.\nConversation so far:\n' + (hist || '(none)') + '\nNew question: ' + q;
+  try {
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000);
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, signal: ac.signal,
+      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: prompt }] }], generationConfig:{ responseMimeType:'application/json', maxOutputTokens: 700 } }) });
+    clearTimeout(t); if (!r.ok) return null;
+    const j = await r.json(), txt = (((j.candidates || [])[0] || {}).content || {}).parts; const o = JSON.parse(txt.map(p => p.text || '').join('').replace(/^```json|```$/g, '').trim());
+    return o && o.asked ? o : null;
+  } catch(_){ return null; }
+}
+const planText = o => 'UNDERSTANDING OF THE QUESTION (worked out from the whole conversation, so stay on exactly this): the user really wants to know: ' + o.asked + (o.terms && o.terms.length ? ' Keep these exact terms and spellings in your searches: ' + o.terms.join(', ') + '.' : '') + (o.queries && o.queries.length ? ' Run these searches, and add your own variations: ' + o.queries.slice(0, 5).join(' | ') + '.' : '') + (o.ambiguous ? ' The question could mean: ' + o.ambiguous + ' Begin your answer with one short line saying how you read it, then answer that, and briefly offer the other reading.' : '');
+const VERIFY = 'FACT-CHECK PASS. Below is a DRAFT answer to the question. Check every factual claim, name, number, date, address, price and link in it with fresh Google searches, deliberately using sources different from the ones the draft probably relied on. Correct anything that is wrong, remove anything you cannot confirm in at least two sources, and keep what is confirmed. If the draft misread the question, fix that. Return the complete final answer in the same format as the draft, keeping the [[Place, City]] tags, links and bottom line, and do not mention that this is a revision.\nDRAFT:\n';
 async function runResearch(q, extra, recheck, c, onStatus){
+  onStatus('Understanding your question…');
+  const plan = await understand(q, c);
+  if (plan){ extra = (extra ? extra + '\n' : '') + planText(plan); if (plan.queries && plan.queries[0]) onStatus('Searching: ' + String(plan.queries[0]).slice(0, 60) + '…'); }
   const snap = (txt, tools) => ({ txt, tools, searched: searchedFlag, sites: siteList.slice(), chunks: gChunks, sup: gSupports, qs: gQueries.slice(), maps: gMaps.slice() });
   const attempt = async (m, lvl, tools, ex, maps) => {
     searchedFlag = false; siteList = []; gChunks = []; gSupports = []; gQueries = []; gMaps = [];
@@ -734,12 +751,26 @@ async function runResearch(q, extra, recheck, c, onStatus){
   const useMaps = (isPlaceQ(q) || nearIntent(q)) && Date.now() > Number(store.get('mapsfail', '0'));
   const first = await chain((useMaps ? [[c.gm, 'high', true, true]] : []).concat([[recheck ? c.rm : c.gm, 'high', true], [c.gm, null, true], [c.rm, 'medium', true], [c.gm, null, false]]), extra);
   const neg = NEG.test(first.txt);
-  if (!first.tools || (first.searched && !neg)) return first;
-  onStatus('Digging deeper, sir…');
-  let second = null;
-  try { second = await chain([[c.rm, 'high', true], [c.gm, 'high', true]], (extra ? extra + '\n' : '') + DEEPEN); } catch (e){ second = null; }
-  if (second && second.txt.trim() && second.searched && (!first.searched || neg)) return second;
-  return first;
+  let best = first;
+  if (first.tools && (!first.searched || neg)){
+    onStatus('Digging deeper, sir…');
+    let second = null;
+    try { second = await chain([[c.rm, 'high', true], [c.gm, 'high', true]], (extra ? extra + '\n' : '') + DEEPEN); } catch (e){ second = null; }
+    if (second && second.txt.trim() && second.searched && (!first.searched || neg)) best = second;
+  }
+  if (best.tools && best.searched && store.get('depth', 'deep') === 'deep' && best.txt.length > 40){
+    onStatus('Verifying the facts against other sources…');
+    try {
+      const ver = await chain([[c.gm, 'high', true]], (extra ? extra + '\n' : '') + VERIFY + best.txt);
+      if (ver && ver.txt.trim() && ver.searched && ver.txt.length > best.txt.length * .4){
+        const seen = new Set(ver.sites.map(x => x.u)); best.sites.forEach(x => { if (!seen.has(x.u)) ver.sites.push(x); });
+        if (!ver.maps.length) ver.maps = best.maps;
+        if (!ver.chunks || !ver.chunks.length) ver.chunks = best.chunks;
+        return ver;
+      }
+    } catch(e){}
+  }
+  return best;
 }
 
 /* ---------- Typewriter reveal + spoken-word highlight ---------- */
