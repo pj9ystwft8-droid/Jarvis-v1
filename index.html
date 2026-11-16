@@ -137,7 +137,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-16l</span></div><span class="by">by DMS (last update: November 16, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17a</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -184,8 +184,20 @@ const store = {
 };
 const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini'), rm: store.get('rm','') || 'gemini-3.6-flash' });
 let manualScroll = false;
-log.addEventListener('touchmove', () => { manualScroll = true; }, { passive:true });
-log.addEventListener('wheel', () => { manualScroll = true; }, { passive:true });
+let lastTouch = 0, autoUntil = 0;
+log.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive:true });
+log.addEventListener('touchmove', () => { manualScroll = true; lastTouch = Date.now(); }, { passive:true });
+log.addEventListener('wheel', () => { manualScroll = true; lastTouch = Date.now(); }, { passive:true });
+/* while he speaks, keep the word being said on screen: scroll only once it nears the bottom, next to the chat box */
+function keepInView(w){
+  if (!w || Date.now() - lastTouch < 4000 || Date.now() < autoUntil) return;
+  const lr = log.getBoundingClientRect(), wr = w.getBoundingClientRect();
+  if (wr.bottom > lr.bottom - Math.max(60, lr.height * .16)){
+    autoUntil = Date.now() + 500;
+    const top = Math.max(0, Math.min(log.scrollHeight - log.clientHeight, log.scrollTop + (wr.top - lr.top) - lr.height * .3));
+    try { log.scrollTo({ top, behavior:'smooth' }); } catch(e){ log.scrollTop = top; }
+  }
+}
 function followAnswer(el){
   if (manualScroll || !el) return;
   const max = log.scrollHeight - log.clientHeight;
@@ -877,7 +889,7 @@ function makeTyper(body){
     if (i >= 0) T.reading(true);
     if (T.cur >= 0 && T.words[T.cur]) T.words[T.cur].classList.remove('say');
     T.cur = i;
-    if (i >= 0 && T.words[i]) T.words[i].classList.add('say');
+    if (i >= 0 && T.words[i]){ T.words[i].classList.add('say'); keepInView(T.words[i]); }
   };
   T.clear = () => { T.say(-1); T.reading(false); };
   T.addItem = text => {
