@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17at</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17au</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -222,7 +222,7 @@ let wordKick = 0;
 let awaitingAdminPw = false;
 let awaitingMemSave = null;
 let awaitingMemCleanup = null;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 46 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 47 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -2009,6 +2009,8 @@ async function convTurn(blob, mime, myName, theirName){
   const prompt = 'You are a live two-way interpreter helping two people talk. One speaker\'s language is ' + myName + '. ' +
     (theirName ? ('The other speaker\'s language is ' + theirName + '.') : 'The other speaker\'s language is not known yet — identify it from the audio.') +
     ' Listen to the attached clip, decide which of the two people is speaking (by which language they used), transcribe exactly what was said, and translate it for the other person. ' +
+    'Listen carefully to the actual words and sounds before naming the language — do not guess from general cadence, accent, or how "foreign" it sounds. Many unrelated languages can superficially sound alike at a glance (for example, Southeast Asian languages such as Tagalog/Filipino, Indonesian, or Malay are sometimes wrongly guessed as Arabic, and vice versa); only name a language you can actually identify specific words from. If you are genuinely unsure between two languages, pick the one you are more confident about rather than guessing a dramatically different one. ' +
+    'Transcribe "original" using the real, authentic spelling of the language as it is normally written. This means: if the language you name is normally written in a non-Latin script (Arabic, Hebrew, Russian/Cyrillic, Greek, Chinese, Japanese, Korean, Thai, Hindi/Devanagari, etc.), the "original" text must actually be written in that script, not transliterated into Latin letters — if you can only write it in Latin letters, you have the wrong language. ' +
     'Respond with strict JSON only, no code fences, in exactly this shape: {"speaker":"me","detected_lang":"...","original":"...","translation":"..."} where "speaker" is "me" if they spoke ' + myName + ' or "other" if they spoke a different language, "detected_lang" is the name of the language actually spoken, "original" is the exact transcription, and "translation" is that text translated into the OTHER person\'s language. ' +
     (theirName ? '' : 'If the other person\'s language is still unknown and this clip is in a different language than ' + myName + ', set "translation" to "" (leave it empty) but still fill in "detected_lang" and "original". ') +
     'If you cannot hear any speech, respond with {"speaker":"","detected_lang":"","original":"","translation":""}.';
@@ -2034,6 +2036,7 @@ function speakAsWait(text, code){
     try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch(_){ resolve(!!v); }
   });
 }
+let trCtx = null;
 async function recordOneUtterance(){
   if (!window.MediaRecorder || !navigator.mediaDevices) throw new Error('Recording is not available in this browser, sir.');
   const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
@@ -2042,8 +2045,16 @@ async function recordOneUtterance(){
   return new Promise((resolve, reject) => {
     let mr; try { mr = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 24000 }) : new MediaRecorder(stream, { audioBitsPerSecond: 24000 }); } catch(e){ stream.getTracks().forEach(t => t.stop()); reject(e); return; }
     const chunks = []; mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-    let AC = window.AudioContext || window.webkitAudioContext, ctx, an;
-    try { ctx = new AC(); if (ctx.state !== 'running') ctx.resume(); const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an); } catch(_){}
+    // Reuse one shared AudioContext across the whole conversation instead of making a fresh one
+    // per utterance: iOS Safari only allows a handful of AudioContexts per page, and creating a
+    // new one every turn eventually exhausts that budget and silently kills the conversation.
+    let AC = window.AudioContext || window.webkitAudioContext, an, srcNode;
+    try {
+      trCtx = trCtx || new AC();
+      if (trCtx.state !== 'running') trCtx.resume();
+      srcNode = trCtx.createMediaStreamSource(stream);
+      an = trCtx.createAnalyser(); an.fftSize = 512; srcNode.connect(an);
+    } catch(_){}
     const t0 = Date.now(); let lastLoud = t0, heardSpeech = false, floor = 0, nf = 0;
     const buf = new Uint8Array(512);
     const poll = setInterval(() => {
@@ -2059,22 +2070,65 @@ async function recordOneUtterance(){
     mr.onstop = () => {
       clearInterval(poll);
       try { stream.getTracks().forEach(t => t.stop()); } catch(_){}
-      try { if (ctx) ctx.close(); } catch(_){}
+      // Disconnect just this turn's nodes — keep the shared context itself open and running
+      // so the next turn doesn't need (and isn't counted as) a brand-new AudioContext.
+      try { if (srcNode) srcNode.disconnect(); } catch(_){}
+      try { if (an) an.disconnect(); } catch(_){}
       if (!heardSpeech){ reject(new Error('I did not hear anything, sir.')); return; }
       resolve({ blob: new Blob(chunks, { type: mr.mimeType || mime || 'audio/mp4' }), mime: mr.mimeType || mime || 'audio/mp4' });
     };
     try { mr.start(); } catch(e){ stream.getTracks().forEach(t => t.stop()); reject(e); }
   });
 }
+function closeTrCtx(){ try { if (trCtx) trCtx.close(); } catch(_){} trCtx = null; }
 function fillTrSelects(){
   const a = $('trA'), b = $('trB'), m = $('trMine'), opts = TR_LANGS.map(x => '<option value="' + x[0] + '">' + x[1] + '</option>').join('');
   a.innerHTML = opts; b.innerHTML = opts; m.innerHTML = opts;
   a.value = store.get('trLangA', 'en-US'); b.value = store.get('trLangB', 'tl-PH'); m.value = store.get('trMine', 'en-US');
 }
 function trLog(html){ const d = $('trlog'); const p = document.createElement('div'); p.style.margin = '6px 0'; p.innerHTML = html; d.appendChild(p); d.scrollTop = d.scrollHeight; }
+// Safety net for language misdetection: if Gemini names a language that is normally written in a
+// particular non-Latin script, but the transcription it gave us doesn't actually contain any
+// characters from that script, the detection is almost certainly wrong (e.g. Tagalog, which is
+// written in the Latin alphabet, mistaken for Arabic). In that case we don't trust/lock in the
+// detected language and just ask the person to repeat themselves.
+const NONLATIN_SCRIPTS = [
+  [/arab/i, /[؀-ۿ]/],
+  [/persia|farsi/i, /[؀-ۿ]/],
+  [/urdu/i, /[؀-ۿ]/],
+  [/hebrew/i, /[֐-׿]/],
+  [/russia|ukrain|bulgar|serbia|belarus/i, /[Ѐ-ӿ]/],
+  [/greek/i, /[Ͱ-Ͽ]/],
+  [/chinese|mandarin|cantonese/i, /[一-鿿]/],
+  [/japanese/i, /[぀-ヿ一-鿿]/],
+  [/korean/i, /[가-힯]/],
+  [/thai/i, /[฀-๿]/],
+  [/hindi|marathi|nepali/i, /[ऀ-ॿ]/],
+  [/bengali/i, /[ঀ-৿]/],
+  [/tamil/i, /[஀-௿]/],
+  [/telugu/i, /[ఀ-౿]/],
+  [/kannada/i, /[ಀ-೿]/],
+  [/malayalam/i, /[ഀ-ൿ]/],
+  [/gujarati/i, /[઀-૿]/],
+  [/punjabi/i, /[਀-੿]/],
+  [/amharic|ethiop/i, /[ሀ-፿]/],
+  [/georgian/i, /[Ⴀ-ჿ]/],
+  [/armenian/i, /[԰-֏]/],
+  [/burmese|myanmar/i, /[က-႟]/],
+  [/khmer/i, /[ក-៿]/],
+  [/\blao\b/i, /[຀-໿]/]
+];
+function detectedLangLooksWrong(langName, text){
+  if (!langName || !text) return false;
+  for (const [nameRe, scriptRe] of NONLATIN_SCRIPTS){
+    if (nameRe.test(langName)) return !scriptRe.test(text);
+  }
+  return false;
+}
 let convOn = false, convTheirName = null, convTheirCode = null;
 function convStop(){
   convOn = false;
+  closeTrCtx();
   $('trListen').textContent = 'Start conversation';
   $('trStatus').textContent = '';
 }
@@ -2092,6 +2146,10 @@ async function convLoop(){
     catch(e){ trLog('<i>' + ((e && e.message) || 'Something went wrong, sir.') + '</i>'); continue; }
     if (!turn.original){ $('trStatus').textContent = 'Listening…'; continue; }
     if (turn.speaker === 'other'){
+      if (detectedLangLooksWrong(turn.detected_lang, turn.original)){
+        trLog('<i>(I didn\'t catch that clearly, sir — could you repeat that?)</i>');
+        $('trStatus').textContent = 'Listening…'; continue;
+      }
       if (!convTheirName || convTheirName.toLowerCase() !== String(turn.detected_lang).toLowerCase()){
         convTheirName = turn.detected_lang; convTheirCode = matchLangCode(convTheirName);
       }
