@@ -141,7 +141,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17k</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17m</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -1694,7 +1694,7 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
   const bok = Array.from({ length: 14 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - .5) * .012, vy: (Math.random() - .5) * .01, r: .05 + Math.random() * .14, a: .07 + Math.random() * .11, p: Math.random() * 6.283 }));
   let memN = 0, memT = -9;
   let warm = 0, voiceAmt = 0, e = .14, col = [111, 211, 255], last = 0, rip = 0, spin = 0, envT = 0;
-  let env = [.5, .5, .5], envG = [.5, .5, .5];
+  let env = [.5, .5, .5], envG = [.5, .5, .5], pz = 0;
   const rgba = a => 'rgba(' + (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0) + ',' + a + ')';
 
   function frame(ms){
@@ -1709,6 +1709,7 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
     envT += dt;
     if (envT > .09){ envT = 0; envG = envG.map(() => talking ? Math.random() : .5 + Math.random() * .3); }
     env = env.map((v, i) => v + (envG[i] - v) * Math.min(1, dt * 14));
+    pz += ((talking ? (env[0] * .6 + env[1] * .4) : 0) - pz) * Math.min(1, dt * 6);
 
     const cx = W / 2, cy = H * .47, S = Math.min(H * .46, W * .8), TAU = Math.PI * 2;
     g.clearRect(0, 0, W, H);
@@ -1757,9 +1758,20 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
       });
     }
     const hl = g.createRadialGradient(cx, cy, 0, cx, cy, oR * .3);
-    hl.addColorStop(0, 'rgba(255,255,255,' + (.36 + .1 * voiceAmt + .04 * Math.sin(t * 2)) + ')'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    hl.addColorStop(0, 'rgba(255,255,255,' + (.3 + .06 * voiceAmt + .04 * Math.sin(t * 2) + .26 * pz) + ')'); hl.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = hl; g.beginPath(); g.arc(cx, cy, oR * .3, 0, TAU); g.fill();
+    if (talking){
+      const pl = Math.min(1, pz * 1.25) * voiceAmt;
+      const pg = g.createRadialGradient(cx, cy, oR * .1, cx, cy, oR * .8);
+      pg.addColorStop(0, 'rgba(255,255,255,' + (.3 * pl) + ')'); pg.addColorStop(.6, 'rgba(' + mix([120, 215, 255]) + ',' + (.26 * pl) + ')'); pg.addColorStop(1, 'rgba(' + mix([120, 215, 255]) + ',0)');
+      g.fillStyle = pg; g.fillRect(cx - oR, cy - oR, oR * 2, oR * 2);
+    }
     g.restore();
+    if (talking){
+      const pl2 = Math.min(1, pz * 1.25) * voiceAmt, hg = g.createRadialGradient(cx, cy, oR * .88, cx, cy, oR * (1.04 + .16 * pl2));
+      hg.addColorStop(0, 'rgba(' + mix([120, 215, 255]) + ',' + (.34 * pl2) + ')'); hg.addColorStop(1, 'rgba(' + mix([120, 215, 255]) + ',0)');
+      g.fillStyle = hg; g.beginPath(); g.arc(cx, cy, oR * 1.2, 0, TAU); g.fill();
+    }
     g.lineCap = 'butt'; g.lineWidth = oR * .1; g.strokeStyle = rgba(.4);
     for (let j = 0; j < 10; j++){ const st = spin * .04 + j * TAU / 10; g.beginPath(); g.arc(cx, cy, oR * .9, st, st + TAU / 10 * .7); g.stroke(); }
     g.lineCap = 'round';
@@ -1824,9 +1836,9 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
       h.save();
       h.shadowColor = rgba(.8); h.shadowBlur = 12 + e * 10;
       h.fillStyle = 'rgba(230,243,251,.95)';
-      h.font = '800 ' + Math.round(S * .07) + 'px Orbitron, "Arial Black", sans-serif';
-      try { h.letterSpacing = Math.round(S * .012) + 'px'; } catch (_) {}
-      h.fillText('JARVIS', cx, cy - S * .455);
+      h.font = '800 ' + Math.round(S * .056) + 'px Orbitron, "Arial Black", sans-serif';
+      try { h.letterSpacing = Math.round(S * .008) + 'px'; } catch (_) {}
+      h.fillText('J.A.R.V.I.S.', cx, cy - S * .455);
       h.restore();
 
       h.save();
