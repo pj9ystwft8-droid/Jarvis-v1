@@ -141,7 +141,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17p</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17t</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -188,6 +188,8 @@ const store = {
 };
 const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (!g || /^gemini-2\./.test(g)) ? 'gemini-3.5-flash-lite' : g)(store.get('gm','')), om: store.get('om','gpt-4o-mini'), rm: store.get('rm','') || 'gemini-3.6-flash' });
 let manualScroll = false;
+let wordKick = 0;
+let awaitingAdminPw = false;
 let lastTouch = 0;
 log.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive:true });
 log.addEventListener('touchmove', () => { manualScroll = true; lastTouch = Date.now(); }, { passive:true });
@@ -223,7 +225,23 @@ function usageGet(){ try { const u = JSON.parse(store.get('usage', '{}')); retur
 function usageBump(url, p){
   const u = usageGet(), mm = /models\/([^:?\/]+)/.exec(url), name = mm ? mm[1] : 'other';
   u.n++; u.m[name] = (u.m[name] || 0) + 1; store.set('usage', JSON.stringify(u));
-  Promise.resolve(p).then(r => { if (r && r.status === 429){ const v = usageGet(); v.hit++; v.t = Date.now(); store.set('usage', JSON.stringify(v)); } }).catch(() => {});
+  fetch('https://countapi.mileshilliard.com/api/v1/hit/jarvisv1gem_' + dayKey()).catch(() => {});
+  Promise.resolve(p).then(r => { if (r && r.status === 429){ const v = usageGet(); v.hit++; v.t = Date.now(); store.set('usage', JSON.stringify(v)); fetch('https://countapi.mileshilliard.com/api/v1/hit/jarvisv1gem429_' + dayKey()).catch(() => {}); } }).catch(() => {});
+}
+async function globalUsageText(){
+  const d = dayKey();
+  const [g, g4] = await Promise.all([
+    fetch('https://countapi.mileshilliard.com/api/v1/get/jarvisv1gem_' + d).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch('https://countapi.mileshilliard.com/api/v1/get/jarvisv1gem429_' + d).then(r => r.ok ? r.json() : null).catch(() => null)
+  ]);
+  const total = (g && g.value) || 0, hit = (g4 && g4.value) || 0;
+  const local = usageGet(), parts = Object.keys(local.m).map(k => k + ': ' + local.m[k]).join(', ');
+  return 'Gemini calls today across all Jarvis users, sir: ' + total + '. ' + (hit ? 'The free limit was hit ' + hit + ' time' + (hit > 1 ? 's' : '') + ' today, somewhere.' : 'No limit hit anywhere today, so far as I can tell.') + ' On this phone alone: ' + local.n + (parts ? ' (' + parts + ')' : '') + '. A thorough answer uses about 3 calls. Google does not publish the exact free limit or how much is left, and it resets daily.';
+}
+async function showUsage(){
+  const w = status('Checking the records, sir\u2026');
+  try { const t = await globalUsageText(); w.remove(); return reply(t); }
+  catch(e){ w.remove(); return reply('I could not reach the usage records just now, sir.'); }
 }
 (() => { const of = window.fetch; window.fetch = function(u){ try { const url = String((u && u.url) || u); const p = of.apply(this, arguments); if (/generativelanguage\.googleapis\.com\/.*:(?:stream)?[gG]enerateContent/.test(url)) usageBump(url, p); return p; } catch(e){ return of.apply(this, arguments); } }; })();
 function usageText(){
@@ -924,6 +942,7 @@ function makeTyper(body){
   T.reading = on => { body.classList.toggle('rd', !!on); };
   T.say = i => {
     if (i >= 0) T.reading(true);
+    if (i >= 0 && i !== T.cur) wordKick = 1;
     if (T.cur >= 0 && T.words[T.cur]) T.words[T.cur].classList.remove('say');
     T.cur = i; if (i < 0) keepInView(null);
     if (i >= 0 && T.words[i]){ T.words[i].classList.add('say'); keepInView(T.words[i]); }
@@ -1428,6 +1447,16 @@ function submit(q){
   if (sent){ const im = document.createElement('img'); im.src = sent.url; im.style.cssText = 'display:block;max-width:100%;max-height:160px;border-radius:8px;margin-top:6px'; mine.appendChild(im); }
   const low = q.toLowerCase();
   let m;
+  if (awaitingAdminPw){
+    awaitingAdminPw = false;
+    if (low.trim() === 'supercalifragilisticexpialidocius'){
+      return reply('Access granted, sir. Here is what I can do:\n\n- ^refresh \u2014 reload the app fresh, bypassing the cache\n- ^jarvis usage \u2014 Gemini calls today, across all users and on this phone\n- ^jarvis stats today \u2014 anonymous, country-only usage for today\n- ^jarvis stats this week \u2014 the same, for this week\n- ^jarvis stats this month \u2014 the same, for this month\n- ^jarvis stats this year \u2014 the same, for this year\n- ^jarvis stats overall \u2014 the same, since I was first switched on\n- ^jarvis com \u2014 show this list again (asks for the password each time)');
+    }
+    return reply('That password was not correct, sir.');
+  }
+  if (low.trim().replace(/[.!?]+$/, '') === '^jarvis com'){ awaitingAdminPw = true; return reply('Please give the admin password, sir.'); }
+  if (low.trim().replace(/[.!?]+$/, '') === '^refresh'){ busy = false; add('sys', 'Refreshing, sir\u2026'); setTimeout(() => { location.href = location.pathname + '?r=' + Date.now(); }, 350); return; }
+  if (low.trim().replace(/[.!?]+$/, '') === '^jarvis usage'){ picTopicNow = ''; return showUsage(); }
   { const sc = matchStatCmd(q); if (sc){ picTopicNow = ''; return showStats(sc[0], sc[1]); } }
   { const na = detectAddr(q);
     if (na){ setAddr(na); const ok = na === 'madam' ? 'My apologies, madam. I shall address you correctly from now on, and I have made a note so it stays that way.' : 'Understood, sir. I shall address you as sir from now on.';
@@ -1773,7 +1802,8 @@ $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok
     envT += dt;
     if (envT > .09){ envT = 0; envG = envG.map(() => talking ? Math.random() : .5 + Math.random() * .3); }
     env = env.map((v, i) => v + (envG[i] - v) * Math.min(1, dt * 14));
-    pz += ((talking ? (env[0] * .6 + env[1] * .4) : 0) - pz) * Math.min(1, dt * 6);
+    wordKick = Math.max(0, wordKick - dt * 4.5);
+    pz += ((talking ? Math.max(env[0] * .4 + env[1] * .25, wordKick) : 0) - pz) * Math.min(1, dt * 12);
 
     const cx = W / 2, cy = H * .47, S = Math.min(H * .46, W * .8), TAU = Math.PI * 2;
     g.clearRect(0, 0, W, H);
