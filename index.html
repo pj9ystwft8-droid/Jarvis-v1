@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17al</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17am</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -220,7 +220,9 @@ const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (
 let manualScroll = false;
 let wordKick = 0;
 let awaitingAdminPw = false;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 38 } ];
+let awaitingMemSave = null;
+let awaitingMemCleanup = null;
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 39 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -295,12 +297,12 @@ async function compact(){
   const c = cfg(), old = history.slice(0, history.length - 10);
   try {
     if (!c.gk) throw new Error('no key');
-    const prompt = 'Update the running summary of a conversation between a user and an assistant called Jarvis. Keep names, decisions, preferences, open questions, and the important facts and answers. Drop small talk and wording. Write plain English in under 120 words.\nCurrent summary: ' + (store.get('summary', '') || '(none)') + '\nOlder messages to fold in:\n' + old.map(m => (m.role === 'user' ? 'User: ' : 'Jarvis: ') + String(m.text).replace(/\s+/g, ' ').slice(0, 300)).join('\n');
+    const prompt = 'Update the running summary of an ongoing, long-term relationship between a user and an assistant called Jarvis, spanning weeks or months. Keep names, decisions, preferences, open questions, running jokes, and the important facts and answers. Drop small talk and wording. Write plain English in under 200 words.\nCurrent summary: ' + (store.get('summary', '') || '(none)') + '\nOlder messages to fold in:\n' + old.map(m => (m.role === 'user' ? 'User: ' : 'Jarvis: ') + String(m.text).replace(/\s+/g, ' ').slice(0, 300)).join('\n');
     const ac = new AbortController(), t = setTimeout(() => ac.abort(), 15000);
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, signal: ac.signal, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: prompt }] }], generationConfig:{ maxOutputTokens: 400 } }) });
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, signal: ac.signal, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: prompt }] }], generationConfig:{ maxOutputTokens: 600 } }) });
     clearTimeout(t); if (!r.ok) throw new Error('summary failed');
     const j = await r.json(), txt = (((j.candidates || [])[0] || {}).content || {}).parts || [], sum = txt.map(x => x.text || '').join('').trim();
-    if (sum.length > 20){ store.set('summary', sum.slice(0, 900)); history = history.slice(-10); saveHist(); }
+    if (sum.length > 20){ store.set('summary', sum.slice(0, 1400)); history = history.slice(-10); saveHist(); }
   } catch(_){ if (history.length > 24){ history = history.slice(-24); saveHist(); } }
   compacting = false;
 }
@@ -576,8 +578,33 @@ function nowText(){
   const d = new Date();
   return d.toLocaleString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }) + ' (' + Intl.DateTimeFormat().resolvedOptions().timeZone + ')';
 }
+const MEM_CAP = 150;
 function facts(){ try { return JSON.parse(store.get('facts','[]')); } catch(e){ return []; } }
-function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-60))); }
+function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-MEM_CAP))); }
+function memList(a){ return (a || facts()).map((f, i) => (i + 1) + '. ' + f).join('\n'); }
+function offerSaveFact(fact){
+  fact = String(fact || '').trim().replace(/[.!]+$/, '');
+  if (!fact) return reply(adr('There is nothing there for me to save, sir.'));
+  awaitingMemSave = fact;
+  return reply(adr('Shall I save this to memory, sir — “' + fact + '”? (yes/no)'));
+}
+function commitFact(fact){
+  const a = facts();
+  if (a.length >= MEM_CAP) return offerMemCleanup(fact);
+  a.push(fact); saveFacts(a);
+  return reply(adr('Very good, sir. I have saved that to memory, and I can bring it back up whenever you need it.'));
+}
+function offerMemCleanup(pendingFact){
+  awaitingMemCleanup = pendingFact || true;
+  const a = facts();
+  return reply(adr('My memory is full, sir (' + a.length + ' saved facts). Here is everything I am holding:\n\n' + memList(a) + '\n\nPlease give me the number or numbers to delete (for example, "3, 7, 12"), and I will make room' + (pendingFact ? ' for the new one' : '') + '. Or say "cancel" to leave everything as it is.'));
+}
+function reviewMemory(){
+  const a = facts();
+  if (!a.length) return reply(adr('I have nothing saved in memory yet, sir.'));
+  awaitingMemCleanup = true;
+  return reply(adr('Here is everything I have saved, sir:\n\n' + memList(a) + '\n\nTell me a number or numbers to delete, or say it is fine as it is.'));
+}
 const LANG_RE = /^\s*\[\[LANG:\s*([^|\]]+?)\s*\|\s*([^\]\s]+)\s*\]\]\s*/i;
 function curLang(){ try { const o = JSON.parse(store.get('lang', '') || 'null'); if (o && o.name && o.code) return o; } catch(_){} return null; }
 function takeLang(t){
@@ -1535,6 +1562,30 @@ function submit(q){
     }
     return reply('That password was not correct, sir.');
   }
+  if (awaitingMemSave){
+    const fact = awaitingMemSave; awaitingMemSave = null;
+    if (/^\s*(y|yes|yeah|yep|sure|go ahead|do it|please|correct|right)\b/i.test(low)) return commitFact(fact);
+    return reply(adr('Understood, sir. I will not save that.'));
+  }
+  if (awaitingMemCleanup){
+    if (/^\s*(cancel|never ?mind|no|stop|leave it)\b/i.test(low)){ awaitingMemCleanup = null; return reply(adr('Understood, sir. I have left your memory as it was.')); }
+    const nums = [...low.matchAll(/\d+/g)].map(x => parseInt(x[0], 10));
+    if (!nums.length) return reply(adr('Please just give me the number or numbers to delete, sir, separated by commas — or say "cancel".'));
+    const pending = awaitingMemCleanup === true ? null : awaitingMemCleanup; awaitingMemCleanup = null;
+    const a = facts(), del = new Set(nums.map(n => n - 1).filter(i => i >= 0 && i < a.length));
+    const kept = a.filter((_, i) => !del.has(i));
+    saveFacts(kept);
+    let msg = 'Done, sir. I removed ' + del.size + ' fact' + (del.size === 1 ? '' : 's') + '.';
+    if (pending){
+      const a2 = facts();
+      if (a2.length < MEM_CAP){ a2.push(pending); saveFacts(a2); msg += ' And I have saved the new one as well.'; }
+      else msg += ' There is still no room for the new one, sir — shall we free up more space?';
+    }
+    return reply(adr(msg));
+  }
+  if (/^(?:show|list|review)\s+(?:my\s+)?memory\b/i.test(low) || /^what do you remember(?: about me)?\??$/i.test(low.trim())){
+    picTopicNow = ''; return reviewMemory();
+  }
   if (low.trim().replace(/[.!?]+$/, '') === '^jarvis com'){ awaitingAdminPw = true; return reply('Please give the admin password, sir.'); }
   if (low.trim().replace(/[.!?]+$/, '') === '^refresh'){ busy = false; add('sys', 'Refreshing, sir\u2026'); setTimeout(() => { location.href = location.pathname + '?r=' + Date.now(); }, 350); return; }
   if (low.trim().replace(/[.!?]+$/, '') === '^jarvis usage'){ picTopicNow = ''; return showUsage(); }
@@ -1544,9 +1595,8 @@ function submit(q){
     if (na){ setAddr(na); const ok = na === 'madam' ? 'My apologies, madam. I shall address you correctly from now on, and I have made a note so it stays that way.' : 'Understood, sir. I shall address you as sir from now on.';
       if (q.split(/\s+/).length <= 14) return reply(ok); add('ai', ok); } }
   if (sent || urlIn(q).length){ picTopicNow = ''; think(q); return; }
-  if ((m = q.match(/^(?:please\s+)?remember(?: that)?\s+(.+)/i))){
-    const a = facts(); a.push(m[1].replace(/[.!]+$/, '')); saveFacts(a);
-    return reply('Very good, sir. I have noted that.');
+  if ((m = q.match(/^(?:please\s+)?(?:remember|note(?: down)?|jot (?:this )?down|keep in mind|don'?t forget|save this(?: to memory)?)(?:\s+that)?[:,]?\s+(.+)/i))){
+    return offerSaveFact(m[1]);
   }
   if ((m = q.match(/^(?:please\s+)?forget(?: that)?\s+(.+)/i))){
     const w = m[1].toLowerCase().replace(/[.!]+$/, ''), a = facts(), keep = a.filter(f => !f.toLowerCase().includes(w));
