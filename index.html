@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17an</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17ao</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -222,7 +222,7 @@ let wordKick = 0;
 let awaitingAdminPw = false;
 let awaitingMemSave = null;
 let awaitingMemCleanup = null;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 40 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 41 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -584,9 +584,35 @@ function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-MEM_CAP))); }
 function memList(a){ return (a || facts()).map((f, i) => (i + 1) + '. ' + f).join('\n'); }
 const YES_RE = /^\s*(y|yes|yeah|yep|yup|sure|affirmative|correct|please|go ahead|go for it|do it|okay|ok|alright|all right|fine|sounds good)\b/i;
 const NO_RE = /^\s*(n|no|nope|nah|negative|don'?t|do not|skip (?:it|that)|leave it|never ?mind|not now)\b/i;
-function offerSaveFact(fact){
-  fact = String(fact || '').trim().replace(/[.!]+$/, '');
-  if (!fact) return reply(adr('There is nothing there for me to save, sir.'));
+function lastAnswerText(){ const a = history.slice().reverse().find(x => x.role === 'ai'); return a ? String(a.text).trim() : ''; }
+function resolveFactText(raw){
+  raw = String(raw || '').trim();
+  const refColon = raw.match(/^(?:this|that|it)\s*[:,-]\s*(.+)$/i);
+  if (refColon && refColon[1].trim()) return refColon[1].trim();
+  const fillerOnly = /^(?:this|that|it)?\s*(?:down|into\s+(?:your\s+)?memory|to\s+memory|in\s+mind|please|for\s+(?:me|later)|that)?[\s.!?]*$/i;
+  if (!raw || fillerOnly.test(raw)) return lastAnswerText();
+  return raw;
+}
+async function paraphraseFact(raw){
+  const c = cfg();
+  if (!c.gk || !raw) return raw;
+  try {
+    const prompt = 'Rewrite the following as one short, clear, third-person fact about the user, in plain English, starting with "User" (for example: "User’s dog is named Max." or "User lives at 5 Example Street, Springfield."). Keep every specific detail — names, places, numbers, dates — exactly as given. Do not add anything that was not stated. Reply with only the rewritten fact and nothing else, under 25 words.\n\nText: ' + raw.slice(0, 1500);
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.gm) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: prompt }] }], generationConfig:{ maxOutputTokens: 80 } }) });
+    if (!r.ok) return raw;
+    const j = await r.json(), out = (((j.candidates || [])[0] || {}).content || {}).parts || [];
+    const clean = out.map(x => x.text || '').join('').trim().replace(/^["“]+|["”]+$/g, '');
+    return clean || raw;
+  } catch(_){ return raw; }
+}
+async function offerSaveFact(raw){
+  const resolved = resolveFactText(raw);
+  if (!resolved) return reply(adr('There is nothing there for me to save, sir.'));
+  const w = add('sys', 'One moment, sir…');
+  let fact = await paraphraseFact(resolved);
+  w.remove();
+  fact = String(fact || resolved).trim().replace(/[.!]+$/, '');
+  if (fact.length > 220) fact = fact.slice(0, 220).trim() + '…';
   awaitingMemSave = fact;
   return reply(adr('I would like to save this to memory, sir: “' + fact + '”. Yes or no?'));
 }
