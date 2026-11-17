@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17ah</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17al</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -182,25 +182,27 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <strong>Settings</strong>
   <p style="font-size:12px;color:var(--dim);line-height:1.5;margin:2px 0 10px">Before you add a key: your messages (and your voice, if you use Accurate voice input) are sent to Google or OpenAI using the key you enter below, under their own privacy policies — not stored by Jarvis anywhere except this browser.</p>
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
-  <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
-  <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
-  <label for="vi">Voice input</label><select id="vi"><option value="acc">Accurate: any language, via Gemini</option><option value="dev">Device: instant, English only</option></select>
-  <label for="rm">Strong model (rechecks and hard questions, small free limit)</label><input id="rm" value="gemini-3.6-flash">
-  <label for="dp">Research depth</label><select id="dp"><option value="deep">Thorough: search deeper, slower</option><option value="fast">Fast: quick answers</option></select>
-  <label for="om">OpenAI model</label><input id="om" value="gpt-4o-mini">
-  <label for="ik">Google Images key (optional)</label><input id="ik" type="password" autocomplete="off">
-  <label for="ic">Google search engine ID (optional)</label><input id="ic" autocomplete="off">
+  <div id="gkhelp" style="font-size:12.5px;color:var(--dim);line-height:1.55;margin:4px 0 10px;padding:9px 10px;border:1px solid var(--line);border-radius:8px">
+    Why I need this: this key is what lets me actually think and talk — it connects me to Google's Gemini AI, which powers my answers, translations, and everything else I do. Without one, I cannot respond at all.<br><br>
+    Don't have one yet? It's free:<br>
+    1. Open <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--arc)">aistudio.google.com/app/apikey</a><br>
+    2. Sign in with any Google account<br>
+    3. Tap "Create API key" (choose or create a project if asked)<br>
+    4. Copy the key it gives you, then paste it above and tap Save
+  </div>
+  <label for="ok">OpenAI API key (optional — only if you also want ChatGPT as a backup)</label><input id="ok" type="password" autocomplete="off">
   <label for="mem">Memory (one fact per line)</label><textarea id="mem" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:15px"></textarea>
   <label for="rd">Reading aloud</label><select id="rd"><option value="short">Short: the first part only</option><option value="full">Full answer</option></select>
-  <label for="md">Answer mode</label><select id="md"><option value="fast">Fast: Gemini first, ChatGPT if not convinced</option><option value="best">Best of both (slower)</option></select>
   <label for="rl">Reply language</label><select id="rl"><option value="en">English (Daniel, default)</option></select>
   <label for="sp">Speaking speed</label><select id="sp"><option value="1">Normal</option><option value="1.08">A little faster</option><option value="1.15">Faster</option></select>
 
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
   <div class="row"><button id="loc">Allow location</button></div>
-  <label for="pshu">Push server URL (optional, for real notifications when closed)</label><input id="pshu" placeholder="https://jarvis-push.your-name.workers.dev" autocomplete="off">
+  <label for="pshu">Push server URL (optional, for real notifications when closed)</label>
+  <input id="pshu" placeholder="https://jarvis-push.your-name.workers.dev" autocomplete="off">
   <div class="row"><button id="pshon">Enable push notifications</button></div>
+  <p style="font-size:12.5px;color:var(--warn);margin:6px 0 0"><b>(PUSH NOTIFICATIONS ARE NOT YET FUNCTIONAL AND MAY BE ENABLED IN A FUTURE UPDATE)</b></p>
   <div id="pshst" style="font-size:12px;color:var(--dim);margin:2px 0"></div>
   <div id="usage" style="font-size:12px;color:var(--dim);line-height:1.5;margin:6px 0 2px"></div>
   <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
@@ -218,7 +220,7 @@ const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (
 let manualScroll = false;
 let wordKick = 0;
 let awaitingAdminPw = false;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 34 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 38 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -1162,7 +1164,7 @@ async function thinkStream(q, extra){
 
 async function think(q, extra){
   const c = cfg();
-  if (!c.gk && !c.ok){ const m = 'Sir, I need at least one API key. Tap Settings to add it.'; add('ai', m); say(m); return; }
+  if (!c.gk && !c.ok){ const m = adr('Sir, I need a Gemini API key to be able to think and respond at all. Tap the gear icon → Settings, and you will find free, step-by-step instructions there for getting one from Google.'); add('ai', m); say(m); return; }
   if (c.gk && (curImg || urlIn(q).length || store.get('mode','fast') !== 'best' || !c.ok)) return thinkStream(q, extra);
   const wait = add('sys', 'Thinking…');
   try {
@@ -1828,8 +1830,8 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
-  $('sp').value = store.get('sp','1.08'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
+  $('sp').value = store.get('sp','1.08'); $('rd').value = store.get('read2','full'); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
@@ -1866,7 +1868,7 @@ function pickGreeting(pool, bucketKey){
   return pool[idx];
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('voice', $('vc').value); store.set('read2', $('rd').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Translator ---------- */
 const TR_LANGS = [
