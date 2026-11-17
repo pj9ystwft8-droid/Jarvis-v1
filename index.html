@@ -17,11 +17,11 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;row-gap:8px}
 h1{font:800 18px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.16em;margin:0}
 header button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 10px;font-size:13px}
 .brand{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-.hbtns{display:flex;gap:6px;align-items:center}
+.hbtns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.mk{white-space:nowrap}.icnbtn{padding:9px!important;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center}
 .ttl{display:flex;align-items:center;gap:8px}
 .mk{font:700 10px/1 Orbitron,"Arial Black",sans-serif;letter-spacing:.14em;color:var(--arc);border:1px solid rgba(111,211,255,.55);border-radius:4px;padding:3px 5px 3px 7px;opacity:.85}
 .by{font:500 11px/1 Rajdhani,"Arial Narrow",sans-serif;letter-spacing:.08em;color:var(--dim);opacity:.45;white-space:normal;line-height:1.25}
@@ -142,7 +142,11 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17y</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17ad</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
+<button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
+<button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
+</div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -155,6 +159,24 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 
 <div id="disc">Jarvis is an AI and can make mistakes.</div>
 
+<dialog id="trd" tabindex="-1">
+  <strong>Translator</strong>
+  <div class="row" style="margin-top:10px;align-items:flex-end">
+    <div style="flex:1"><label for="trA" style="margin:0 0 4px">Translate from</label><select id="trA"></select></div>
+    <button id="trswap" aria-label="Swap languages" style="flex:0 0 44px">⇄</button>
+    <div style="flex:1"><label for="trB" style="margin:0 0 4px">Translate to</label><select id="trB"></select></div>
+  </div>
+  <label for="trtxt">Type a phrase to translate</label>
+  <input id="trtxt" placeholder="Type here…" autocomplete="off">
+  <div class="row"><button id="trgo" class="go">Translate</button></div>
+  <div id="trquick" style="font-size:15px;line-height:1.5;margin-top:4px"></div>
+  <p>Or start a live two-way conversation. Pick your language once, tap Start, and Jarvis will listen, detect whoever is speaking, and translate automatically as the conversation flows — no need to tap anything between turns.</p>
+  <label for="trMine" style="margin:0 0 4px">Your language</label><select id="trMine"></select>
+  <div class="row"><button id="trListen" class="go">Start conversation</button></div>
+  <div id="trStatus" style="font-size:13px;opacity:.75;margin-top:2px"></div>
+  <div id="trlog" style="max-height:34vh;overflow:auto;margin-top:10px;font-size:14px;line-height:1.5"></div>
+  <div class="row"><button id="trcancel">Close</button></div>
+</dialog>
 <dialog id="dlg">
   <strong>Settings</strong>
   <p style="font-size:12px;color:var(--dim);line-height:1.5;margin:2px 0 10px">Before you add a key: your messages (and your voice, if you use Accurate voice input) are sent to Google or OpenAI using the key you enter below, under their own privacy policies — not stored by Jarvis anywhere except this browser.</p>
@@ -195,7 +217,7 @@ const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (
 let manualScroll = false;
 let wordKick = 0;
 let awaitingAdminPw = false;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 23 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 30 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -1290,7 +1312,7 @@ async function addPics(el, topic){
 /* ---------- Attachments, Simple mode, links ---------- */
 let attach = null;
 let simpleOn = false;
-function setSimple(v){ simpleOn = v; $('simple').classList.toggle('on', v); $('simple').textContent = 'Simple: ' + (v ? 'on' : 'off'); $('simple').setAttribute('aria-pressed', String(v)); }
+function setSimple(v){ simpleOn = v; $('simple').classList.toggle('on', v); $('simple').setAttribute('aria-pressed', String(v)); }
 $('simple').onclick = () => setSimple(!simpleOn);
 function loadImage(file){
   if (!file || !/^image\//.test(file.type)) return;
@@ -1844,6 +1866,186 @@ function pickGreeting(pool, bucketKey){
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
 $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+
+/* ---------- Translator ---------- */
+const TR_LANGS = [
+  ['en-US','English'], ['tl-PH','Filipino (Tagalog)'], ['es-ES','Spanish'], ['fr-FR','French'],
+  ['de-DE','German'], ['it-IT','Italian'], ['pt-PT','Portuguese'], ['pt-BR','Portuguese (Brazil)'],
+  ['ja-JP','Japanese'], ['ko-KR','Korean'], ['zh-CN','Chinese (Mandarin)'], ['zh-HK','Chinese (Cantonese)'],
+  ['vi-VN','Vietnamese'], ['th-TH','Thai'], ['id-ID','Indonesian'], ['ms-MY','Malay'],
+  ['hi-IN','Hindi'], ['ar-SA','Arabic'], ['ru-RU','Russian'], ['nl-NL','Dutch'],
+  ['pl-PL','Polish'], ['tr-TR','Turkish'], ['el-GR','Greek'], ['sv-SE','Swedish'],
+  ['da-DK','Danish'], ['nb-NO','Norwegian'], ['fi-FI','Finnish'], ['cs-CZ','Czech'],
+  ['ro-RO','Romanian'], ['hu-HU','Hungarian'], ['uk-UA','Ukrainian'], ['he-IL','Hebrew']
+];
+function trName(code){ const f = TR_LANGS.find(x => x[0] === code); return f ? f[1] : code; }
+function allVoices(){ return window.speechSynthesis ? speechSynthesis.getVoices() : []; }
+function voiceForLangCode(code){
+  const lc = String(code).toLowerCase().replace('_', '-'), pri = lc.split('-')[0];
+  const all = allVoices().filter(v => v.lang.toLowerCase().replace('_', '-').split('-')[0] === pri);
+  return all.find(v => v.lang.toLowerCase().replace('_', '-') === lc) || all[0] || null;
+}
+function speakAs(text, code){
+  if (!window.speechSynthesis || !text) return false;
+  const v = voiceForLangCode(code);
+  const u = new SpeechSynthesisUtterance(text);
+  if (v){ u.voice = v; u.lang = v.lang; } else { u.lang = code; }
+  try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch(_){}
+  return !!v;
+}
+async function geminiText(parts, maxOut){
+  const c = cfg();
+  if (!c.gk) throw new Error('Add a Gemini key in Settings first, sir.');
+  const body = { contents:[{ role:'user', parts }], generationConfig:{ temperature:0, maxOutputTokens: maxOut || 400, thinkingConfig:{ thinkingLevel:'minimal' } } };
+  const m = 'gemini-3.5-flash-lite';
+  const go = () => fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent?key=' + encodeURIComponent(c.gk), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  let r = await go();
+  if (!r.ok && r.status === 400){ delete body.generationConfig.thinkingConfig; r = await go(); }
+  if (!r.ok){ let t = ''; try { t = (await r.json()).error.message; } catch(_){} throw new Error(t || ('HTTP ' + r.status)); }
+  const j = await r.json(), ps = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+  return ps.map(x => x.text || '').join('').trim();
+}
+async function translateText(text, fromName, toName){
+  return geminiText([{ text:'Translate the following text from ' + fromName + ' to ' + toName + '. Reply with only the translation, nothing else, no quotes, no explanation.\n\nText: ' + text }], 400);
+}
+async function transcribeAndTranslate(blob, mime, fromName, toName){
+  const b64 = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result).split(',')[1]); f.onerror = no; f.readAsDataURL(blob); });
+  const prompt = 'This audio is spoken in ' + fromName + '. Transcribe it exactly as spoken, then translate it into ' + toName + '. Respond with strict JSON only, no code fences, in exactly this shape: {"original":"...","translation":"..."}. If you cannot hear any speech, respond with {"original":"","translation":""}.';
+  const raw = await geminiText([{ text: prompt }, { inlineData:{ mimeType: mime, data: b64 } }], 700);
+  const cleaned = raw.replace(/^```json\s*|\s*```$/g, '').replace(/^```\s*|\s*```$/g, '');
+  try { const o = JSON.parse(cleaned); return { original: o.original || '', translation: o.translation || '' }; } catch(_){ return { original: raw, translation: raw }; }
+}
+async function convTurn(blob, mime, myName, theirName){
+  const b64 = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result).split(',')[1]); f.onerror = no; f.readAsDataURL(blob); });
+  const prompt = 'You are a live two-way interpreter helping two people talk. One speaker\'s language is ' + myName + '. ' +
+    (theirName ? ('The other speaker\'s language is ' + theirName + '.') : 'The other speaker\'s language is not known yet — identify it from the audio.') +
+    ' Listen to the attached clip, decide which of the two people is speaking (by which language they used), transcribe exactly what was said, and translate it for the other person. ' +
+    'Respond with strict JSON only, no code fences, in exactly this shape: {"speaker":"me","detected_lang":"...","original":"...","translation":"..."} where "speaker" is "me" if they spoke ' + myName + ' or "other" if they spoke a different language, "detected_lang" is the name of the language actually spoken, "original" is the exact transcription, and "translation" is that text translated into the OTHER person\'s language. ' +
+    (theirName ? '' : 'If the other person\'s language is still unknown and this clip is in a different language than ' + myName + ', set "translation" to "" (leave it empty) but still fill in "detected_lang" and "original". ') +
+    'If you cannot hear any speech, respond with {"speaker":"","detected_lang":"","original":"","translation":""}.';
+  const raw = await geminiText([{ text: prompt }, { inlineData:{ mimeType: mime, data: b64 } }], 700);
+  const cleaned = raw.replace(/^```json\s*|\s*```$/g, '').replace(/^```\s*|\s*```$/g, '');
+  try { const o = JSON.parse(cleaned); return { speaker: o.speaker || '', detected_lang: o.detected_lang || '', original: o.original || '', translation: o.translation || '' }; }
+  catch(_){ return { speaker:'', detected_lang:'', original: raw, translation:'' }; }
+}
+function matchLangCode(name){
+  if (!name) return null;
+  const n = String(name).toLowerCase().trim();
+  const f = TR_LANGS.find(x => x[1].toLowerCase() === n) || TR_LANGS.find(x => x[1].toLowerCase().includes(n) || n.includes(x[1].toLowerCase().split(' ')[0]));
+  return f ? f[0] : null;
+}
+function speakAsWait(text, code){
+  return new Promise(resolve => {
+    if (!window.speechSynthesis || !text){ resolve(false); return; }
+    const v = voiceForLangCode(code);
+    const u = new SpeechSynthesisUtterance(text);
+    if (v){ u.voice = v; u.lang = v.lang; } else if (code){ u.lang = code; }
+    u.onend = () => resolve(!!v);
+    u.onerror = () => resolve(!!v);
+    try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch(_){ resolve(!!v); }
+  });
+}
+async function recordOneUtterance(){
+  if (!window.MediaRecorder || !navigator.mediaDevices) throw new Error('Recording is not available in this browser, sir.');
+  const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+  const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+  const mime = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(_){ return false; } }) || '';
+  return new Promise((resolve, reject) => {
+    let mr; try { mr = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 24000 }) : new MediaRecorder(stream, { audioBitsPerSecond: 24000 }); } catch(e){ stream.getTracks().forEach(t => t.stop()); reject(e); return; }
+    const chunks = []; mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    let AC = window.AudioContext || window.webkitAudioContext, ctx, an;
+    try { ctx = new AC(); if (ctx.state !== 'running') ctx.resume(); const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an); } catch(_){}
+    const t0 = Date.now(); let lastLoud = t0, heardSpeech = false, floor = 0, nf = 0;
+    const buf = new Uint8Array(512);
+    const poll = setInterval(() => {
+      let rms = 0;
+      if (an){ an.getByteTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++){ const x = (buf[i] - 128) / 128; sum += x * x; } rms = Math.sqrt(sum / buf.length); }
+      const now = Date.now();
+      if (now - t0 < 500){ floor += rms; nf++; return; }
+      const thr = Math.max(.02, (floor / Math.max(1, nf)) * 2.8);
+      if (rms > thr){ lastLoud = now; heardSpeech = true; }
+      const silentFor = now - lastLoud;
+      if ((heardSpeech && silentFor > 800) || (!heardSpeech && now - t0 > 9000) || now - t0 > 20000){ clearInterval(poll); try { mr.stop(); } catch(_){} }
+    }, 60);
+    mr.onstop = () => {
+      clearInterval(poll);
+      try { stream.getTracks().forEach(t => t.stop()); } catch(_){}
+      try { if (ctx) ctx.close(); } catch(_){}
+      if (!heardSpeech){ reject(new Error('I did not hear anything, sir.')); return; }
+      resolve({ blob: new Blob(chunks, { type: mr.mimeType || mime || 'audio/mp4' }), mime: mr.mimeType || mime || 'audio/mp4' });
+    };
+    try { mr.start(); } catch(e){ stream.getTracks().forEach(t => t.stop()); reject(e); }
+  });
+}
+function fillTrSelects(){
+  const a = $('trA'), b = $('trB'), m = $('trMine'), opts = TR_LANGS.map(x => '<option value="' + x[0] + '">' + x[1] + '</option>').join('');
+  a.innerHTML = opts; b.innerHTML = opts; m.innerHTML = opts;
+  a.value = store.get('trLangA', 'en-US'); b.value = store.get('trLangB', 'tl-PH'); m.value = store.get('trMine', 'en-US');
+}
+function trLog(html){ const d = $('trlog'); const p = document.createElement('div'); p.style.margin = '6px 0'; p.innerHTML = html; d.appendChild(p); d.scrollTop = d.scrollHeight; }
+let convOn = false, convTheirName = null, convTheirCode = null;
+function convStop(){
+  convOn = false;
+  $('trListen').textContent = 'Start conversation';
+  $('trStatus').textContent = '';
+}
+async function convLoop(){
+  const myCode = $('trMine').value, myName = trName(myCode);
+  while (convOn){
+    $('trStatus').textContent = 'Listening…';
+    let rec;
+    try { rec = await recordOneUtterance(); }
+    catch(e){ if (!convOn) break; $('trStatus').textContent = (e && e.message) || 'Did not hear anything, sir.'; continue; }
+    if (!convOn) break;
+    $('trStatus').textContent = 'Working on it…';
+    let turn;
+    try { turn = await convTurn(rec.blob, rec.mime, myName, convTheirName); }
+    catch(e){ trLog('<i>' + ((e && e.message) || 'Something went wrong, sir.') + '</i>'); continue; }
+    if (!turn.original){ $('trStatus').textContent = 'Listening…'; continue; }
+    if (turn.speaker === 'other'){
+      if (!convTheirName || convTheirName.toLowerCase() !== String(turn.detected_lang).toLowerCase()){
+        convTheirName = turn.detected_lang; convTheirCode = matchLangCode(convTheirName);
+      }
+      if (!turn.translation){ trLog('<b>' + (convTheirName || 'Them') + ':</b> ' + turn.original); $('trStatus').textContent = 'Listening…'; continue; }
+      trLog('<b>' + convTheirName + ':</b> ' + turn.original + '<br><b>' + myName + ':</b> ' + turn.translation);
+      if (!convOn) break;
+      $('trStatus').textContent = 'Speaking…';
+      await speakAsWait(turn.translation, myCode);
+    } else {
+      const toName = convTheirName || 'the other language', toCode = convTheirCode || null;
+      if (!turn.translation){ trLog('<b>' + myName + ':</b> ' + turn.original + '<br><i>(Still waiting to hear the other person\'s language, sir — once they speak I\'ll know what to translate into.)</i>'); $('trStatus').textContent = 'Listening…'; continue; }
+      trLog('<b>' + myName + ':</b> ' + turn.original + '<br><b>' + toName + ':</b> ' + turn.translation);
+      if (!convOn) break;
+      $('trStatus').textContent = 'Speaking…';
+      await speakAsWait(turn.translation, toCode);
+    }
+    if (!convOn) break;
+    $('trStatus').textContent = 'Listening…';
+  }
+  convOn = false;
+  $('trListen').textContent = 'Start conversation';
+  $('trStatus').textContent = '';
+}
+$('trbtn').onclick = () => {
+  convStop(); convTheirName = null; convTheirCode = null; fillTrSelects(); $('trlog').innerHTML = ''; $('trquick').textContent = ''; $('trtxt').value = '';
+  const d = $('trd'); d.showModal();
+  try { d.focus(); if (document.activeElement && document.activeElement.tagName === 'SELECT') document.activeElement.blur(); } catch(_){}
+};
+$('trcancel').onclick = () => { convStop(); try { speechSynthesis.cancel(); } catch(_){} $('trd').close(); };
+$('trswap').onclick = () => { const a = $('trA').value, b = $('trB').value; $('trA').value = b; $('trB').value = a; store.set('trLangA', $('trA').value); store.set('trLangB', $('trB').value); };
+$('trA').onchange = () => { store.set('trLangA', $('trA').value); };
+$('trB').onchange = () => { store.set('trLangB', $('trB').value); };
+$('trMine').onchange = () => { store.set('trMine', $('trMine').value); convTheirName = null; convTheirCode = null; };
+$('trgo').onclick = async () => {
+  const text = $('trtxt').value.trim(); if (!text) return;
+  $('trquick').textContent = 'Translating…';
+  try { const out = await translateText(text, trName($('trA').value), trName($('trB').value)); $('trquick').textContent = out; speakAs(out, $('trB').value); }
+  catch(e){ $('trquick').textContent = (e && e.message) || 'Could not translate just now, sir.'; }
+};
+$('trListen').onclick = () => {
+  if (convOn){ convStop(); return; }
+  convOn = true; $('trListen').textContent = 'Stop conversation'; convLoop();
+};
 
 /* ---------- Living background ---------- */
 (function(){
