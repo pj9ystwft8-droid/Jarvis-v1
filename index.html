@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17am</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17an</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -222,7 +222,7 @@ let wordKick = 0;
 let awaitingAdminPw = false;
 let awaitingMemSave = null;
 let awaitingMemCleanup = null;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 39 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 40 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -582,11 +582,13 @@ const MEM_CAP = 150;
 function facts(){ try { return JSON.parse(store.get('facts','[]')); } catch(e){ return []; } }
 function saveFacts(a){ store.set('facts', JSON.stringify(a.slice(-MEM_CAP))); }
 function memList(a){ return (a || facts()).map((f, i) => (i + 1) + '. ' + f).join('\n'); }
+const YES_RE = /^\s*(y|yes|yeah|yep|yup|sure|affirmative|correct|please|go ahead|go for it|do it|okay|ok|alright|all right|fine|sounds good)\b/i;
+const NO_RE = /^\s*(n|no|nope|nah|negative|don'?t|do not|skip (?:it|that)|leave it|never ?mind|not now)\b/i;
 function offerSaveFact(fact){
   fact = String(fact || '').trim().replace(/[.!]+$/, '');
   if (!fact) return reply(adr('There is nothing there for me to save, sir.'));
   awaitingMemSave = fact;
-  return reply(adr('Shall I save this to memory, sir — “' + fact + '”? (yes/no)'));
+  return reply(adr('I would like to save this to memory, sir: “' + fact + '”. Yes or no?'));
 }
 function commitFact(fact){
   const a = facts();
@@ -1171,7 +1173,7 @@ async function thinkStream(q, extra){
     }
     const prior = history.slice();
     history.push({ role:'user', text:q }, { role:'ai', text:full }); setTimeout(addFeedback, 2500);
-    history = history.slice(-24); saveHist(); learn(q, full); compact();
+    history = history.slice(-24); saveHist(); compact();
     if (c.ok){
       const b = document.createElement('button');
       b.className = 'alt'; b.textContent = 'Not convinced';
@@ -1217,7 +1219,7 @@ async function think(q, extra){
       el.appendChild(b);
     }
     history.push({ role:'user', text:q }, { role:'ai', text:best }); setTimeout(addFeedback, 2500);
-    history = history.slice(-24); saveHist(); learn(q, best); compact();
+    history = history.slice(-24); saveHist(); compact();
     say(best);
   } catch(e){
     wait.remove();
@@ -1563,9 +1565,10 @@ function submit(q){
     return reply('That password was not correct, sir.');
   }
   if (awaitingMemSave){
-    const fact = awaitingMemSave; awaitingMemSave = null;
-    if (/^\s*(y|yes|yeah|yep|sure|go ahead|do it|please|correct|right)\b/i.test(low)) return commitFact(fact);
-    return reply(adr('Understood, sir. I will not save that.'));
+    const fact = awaitingMemSave;
+    if (YES_RE.test(low)){ awaitingMemSave = null; return commitFact(fact); }
+    if (NO_RE.test(low)){ awaitingMemSave = null; return reply(adr('Understood, sir. I will not save that.')); }
+    return reply(adr('Just yes or no will do, sir — shall I save it?'));
   }
   if (awaitingMemCleanup){
     if (/^\s*(cancel|never ?mind|no|stop|leave it)\b/i.test(low)){ awaitingMemCleanup = null; return reply(adr('Understood, sir. I have left your memory as it was.')); }
