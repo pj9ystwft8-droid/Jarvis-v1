@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Jarvis">
 <meta name="theme-color" content="#071018">
 <title>Jarvis</title>
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -141,7 +142,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17t</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17w</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns"><button id="simple" aria-pressed="false">Simple: off</button><button id="cfg">Settings</button></div></header>
 <main id="log" aria-live="polite"></main>
 <div id="att"><img alt=""><span>Picture attached</span><button id="attx" aria-label="Remove picture">&#10005;</button></div>
 <div id="bar">
@@ -156,6 +157,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 
 <dialog id="dlg">
   <strong>Settings</strong>
+  <p style="font-size:12px;color:var(--dim);line-height:1.5;margin:2px 0 10px">Before you add a key: your messages (and your voice, if you use Accurate voice input) are sent to Google or OpenAI using the key you enter below, under their own privacy policies — not stored by Jarvis anywhere except this browser.</p>
   <label for="gk">Gemini API key</label><input id="gk" type="password" autocomplete="off">
   <label for="ok">OpenAI API key</label><input id="ok" type="password" autocomplete="off">
   <label for="gm">Gemini model</label><input id="gm" value="gemini-3.5-flash-lite">
@@ -174,6 +176,9 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
   <div class="row"><button id="loc">Allow location</button></div>
+  <label for="pshu">Push server URL (optional, for real notifications when closed)</label><input id="pshu" placeholder="https://jarvis-push.your-name.workers.dev" autocomplete="off">
+  <div class="row"><button id="pshon">Enable push notifications</button></div>
+  <div id="pshst" style="font-size:12px;color:var(--dim);margin:2px 0"></div>
   <div id="usage" style="font-size:12px;color:var(--dim);line-height:1.5;margin:6px 0 2px"></div>
   <p>Keys are stored only in this browser on your phone. They are never placed in the page’s code.</p>
   <div class="row"><button id="cancel">Close</button><button id="save" class="go">Save</button></div>
@@ -190,6 +195,15 @@ const cfg = () => ({ gk: store.get('gk',''), ok: store.get('ok',''), gm: (g => (
 let manualScroll = false;
 let wordKick = 0;
 let awaitingAdminPw = false;
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 23 } ];
+function versionText(){
+  const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
+  const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
+  const todayKey = dayKey();
+  const todayEntry = BUILD_LOG.find(x => x.d === todayKey);
+  const today = todayEntry ? todayEntry.n : 0;
+  return 'I am at ' + badge + ', sir. That is ' + today + ' revision' + (today === 1 ? '' : 's') + ' today, and ' + total + ' in total since I was first switched on, across ' + BUILD_LOG.length + ' day' + (BUILD_LOG.length === 1 ? '' : 's') + ' so far.';
+}
 let lastTouch = 0;
 log.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive:true });
 log.addEventListener('touchmove', () => { manualScroll = true; lastTouch = Date.now(); }, { passive:true });
@@ -1315,13 +1329,55 @@ function parseReminder(q){
   const ms = n * { second:1000, minute:60000, hour:3600000 }[m[2].toLowerCase()];
   return { ms, what: (m[3] || 'your reminder').trim(), label: n + ' ' + m[2].toLowerCase() + (n > 1 ? 's' : '') };
 }
+const VAPID_PUBLIC = 'BM0lKMoMoAjwWMg8tTTLYSIGP6kLUUYSAooJsQFIjeFYjBbeV6exZ2HyMWVIF80P_d_3JY-8cO3CI4lv9vkf-B4';
+function b64ToU8(b64){
+  const pad = '='.repeat((4 - b64.length % 4) % 4), s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(s), out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+let swReg = null;
+async function ensureSW(){
+  if (!('serviceWorker' in navigator)) return null;
+  if (swReg) return swReg;
+  try { swReg = await navigator.serviceWorker.register('sw.js'); return swReg; } catch (_) { return null; }
+}
+ensureSW();
+async function subscribePush(){
+  const url = store.get('pushUrl', '');
+  if (!url){ add('sys', 'Add a push server URL in Settings first, sir.'); return null; }
+  if (!('PushManager' in window)){ add('sys', 'This browser cannot receive push notifications, sir.'); return null; }
+  const reg = await ensureSW();
+  if (!reg){ add('sys', 'I could not set up the notification worker, sir.'); return null; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted'){ add('sys', 'Notifications were not allowed, sir.'); return null; }
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) });
+  try {
+    await fetch(url + '/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub }) });
+    store.set('pushSub', '1');
+    add('sys', 'Push notifications are on, sir.');
+  } catch (_) { add('sys', 'I could not reach the push server, sir.'); }
+  return sub;
+}
+async function getPushSub(){
+  const reg = await ensureSW();
+  if (!reg) return null;
+  try { return await reg.pushManager.getSubscription(); } catch (_) { return null; }
+}
 function setReminder(r){
   setTimeout(() => {
     const msg = 'Sir, a reminder: ' + r.what;
     add('ai', msg); say(msg);
-    try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Jarvis', { body:r.what }); } catch(e){}
   }, r.ms);
-  const m = 'Very good, sir. I will remind you in ' + r.label + ' to ' + r.what + '. Keep this page open until then.';
+  (async () => {
+    const url = store.get('pushUrl', '');
+    if (!url) return;
+    const sub = await getPushSub();
+    if (!sub) return;
+    try { await fetch(url + '/remind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, ms: r.ms, what: r.what }) }); } catch (_) {}
+  })();
+  const m = 'Very good, sir. I will remind you in ' + r.label + ' to ' + r.what + (store.get('pushSub','') ? '.' : '. Keep this page open until then, or turn on push notifications in Settings so it still reaches you if you close it.');
   add('ai', m); say(m);
   try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
 }
@@ -1457,6 +1513,7 @@ function submit(q){
   if (low.trim().replace(/[.!?]+$/, '') === '^jarvis com'){ awaitingAdminPw = true; return reply('Please give the admin password, sir.'); }
   if (low.trim().replace(/[.!?]+$/, '') === '^refresh'){ busy = false; add('sys', 'Refreshing, sir\u2026'); setTimeout(() => { location.href = location.pathname + '?r=' + Date.now(); }, 350); return; }
   if (low.trim().replace(/[.!?]+$/, '') === '^jarvis usage'){ picTopicNow = ''; return showUsage(); }
+  if (low.trim().replace(/[.!?]+$/, '') === '^jarvis version'){ picTopicNow = ''; return reply(versionText()); }
   { const sc = matchStatCmd(q); if (sc){ picTopicNow = ''; return showStats(sc[0], sc[1]); } }
   { const na = detectAddr(q);
     if (na){ setAddr(na); const ok = na === 'madam' ? 'My apologies, madam. I shall address you correctly from now on, and I have made a note so it stays that way.' : 'Understood, sir. I shall address you as sir from now on.';
@@ -1749,10 +1806,11 @@ async function diag(){
 
 /* ---------- Settings ---------- */
 $('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; $('gm').value = c.gm; $('om').value = c.om; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
-  $('sp').value = store.get('sp','1.08'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); fillVoices(); dlg.showModal(); };
+  $('sp').value = store.get('sp','1.08'); $('rm').value = c.rm; $('vi').value = store.get('vin','acc'); $('dp').value = store.get('depth','deep'); $('md').value = store.get('mode','fast'); $('rd').value = store.get('read2','full'); $('ik').value = store.get('ik',''); $('ic').value = store.get('ic',''); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
+$('pshon').onclick = async () => { store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); await subscribePush(); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; };
 function greeting(){
   const h = new Date().getHours();
   return h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
@@ -1774,7 +1832,7 @@ function welcome(){
   store.set('lastgrt', pool[i]); return pool[i];
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('gm', $('gm').value.trim()); store.set('om', $('om').value.trim()); store.set('rm', $('rm').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('vin', $('vi').value); window._recFailUntil = 0; store.set('depth', $('dp').value); store.set('voice', $('vc').value); store.set('mode', $('md').value); store.set('read2', $('rd').value); store.set('ik', $('ik').value.trim()); store.set('ic', $('ic').value.trim()); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Living background ---------- */
 (function(){
