@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-18h</span></div><span class="by">by DMS (last update: November 18, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-18j</span></div><span class="by">by DMS (last update: November 18, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -208,6 +208,8 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
     Can't find it there? Try instead: Settings → Accessibility → VoiceOver → Speech → Add New Language → choose UK English → tap Voice → pick a voice → Enhanced Quality. Some iOS versions put the download option there instead.<br><br>
     Once it's downloaded, come back here and pick it from the "Device voice" list above, or just leave it on Default — I already try to pick a British voice automatically when one is available.
   </div>
+  <div class="row"><button id="bargeToggle">Interrupt by voice: On</button></div>
+  <p style="font-size:12px;color:var(--dim);margin:2px 0 10px">While I am speaking in voice mode, if I hear you start talking I will stop at once and listen, the way the real J.A.R.V.I.S. lets himself be interrupted. Works best with headphones or AirPods; on the phone's own speaker it may occasionally stop early if it mistakes my own voice for yours — turn this off here if that happens often.</p>
   <div class="row"><button id="loc">Allow location</button></div>
   <label for="pshu">Push server URL (optional, for real notifications when closed)</label>
   <input id="pshu" placeholder="https://jarvis-push.your-name.workers.dev" autocomplete="off">
@@ -232,7 +234,7 @@ let wordKick = 0;
 let awaitingAdminPw = false;
 let awaitingMemSave = null;
 let awaitingMemCleanup = null;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 49 }, { d: '2026-11-18', n: 8 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 49 }, { d: '2026-11-18', n: 10 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -536,8 +538,8 @@ function wakeHint(){
   b.onclick = () => { b.remove(); d.remove(); wakeShown = false; ttsConfirmed = false; say(bootGreeting || welcome()); };
   d.appendChild(b);
 }
-function done(id){ if (id !== sayId) return; if (HL.T) HL.T.clear(); document.body.classList.remove('talk'); busy = false; if (live && !rec){ listen(); setTimeout(meterOn, 400); } }
-function speechStart(){ if (HL.T){ HL.T.clear(); HL.T = null; } sayId++; pend = 0; fin = false; ttsEnd = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
+function done(id){ if (id !== sayId) return; bargeDisarm(); if (HL.T) HL.T.clear(); document.body.classList.remove('talk'); busy = false; if (live && !rec){ listen(); setTimeout(meterOn, 400); } }
+function speechStart(){ bargeDisarm(); if (HL.T){ HL.T.clear(); HL.T = null; } sayId++; pend = 0; fin = false; ttsEnd = 0; spq.length = 0; spBusy = false; curIt = null; if (live) meterOff(); if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); return sayId; }
 /* ---------- Natural voice: Gemini text-to-speech played through an audio element ---------- */
 const spd = () => 1.0; // no Settings control anymore — tune this directly to change Jarvis's speaking pace
 try { if (store.get('depthrev', '') !== '1'){ store.set('depthrev', '1'); store.set('depth', 'deep'); } } catch(_){}
@@ -553,7 +555,7 @@ function spPump(){
   let started = false, ended = false, resc = 0;
   const next = () => { if (ended) return; ended = true; clearTimeout(wd); if (it.hl) it.hl.end(); if (curIt === it){ spBusy = false; curIt = null; } it.finish(); if (curIt === null) spPump(); };
   const wd = setTimeout(next, it.text.length * 110 + 6000);
-  it.u.onstart = () => { started = true; ttsConfirmed = true; if (it.hl) it.hl.start(); };
+  it.u.onstart = () => { started = true; ttsConfirmed = true; if (it.hl) it.hl.start(); if (live) bargeArm(); };
   it.u.onboundary = e => { if (it.hl && (!e.name || e.name === 'word')) it.hl.boundary(e.charIndex); };
   it.u.onend = () => { if (it.hl) it.hl.end(); next(); };
   it.u.onerror = () => { if (Date.now() - resc < 500) return; next(); };
@@ -1645,6 +1647,7 @@ function submit(q){
   { const na = detectAddr(q);
     if (na){ setAddr(na); const ok = na === 'madam' ? 'My apologies, madam. I shall address you correctly from now on, and I have made a note so it stays that way.' : 'Understood, sir. I shall address you as sir from now on.';
       if (q.split(/\s+/).length <= 14) return reply(ok); add('ai', ok); } }
+  if (!sent && BRIEF_RE.test(low)){ picTopicNow = ''; return statusBriefing(); }
   if (sent || urlIn(q).length){ picTopicNow = ''; think(q); return; }
   if ((m = q.match(/^(?:please\s+)?(?:remember|note(?: down)?|jot (?:this )?down|keep in mind|don'?t forget|save this(?: to memory)?)(?:\s+that)?[:,]?\s+(.+)/i))){
     return offerSaveFact(m[1]);
@@ -1805,7 +1808,7 @@ async function listenRec(){
   mr.start();
 }
 function stopLive(){
-  live = false; busy = false; sayId++; if (HL.T) HL.T.clear(); heardNow = false; clearTimeout(window._hn); micWait = false;
+  live = false; busy = false; sayId++; bargeDisarm(); if (HL.T) HL.T.clear(); heardNow = false; clearTimeout(window._hn); micWait = false;
   $('mic').classList.remove('on'); document.body.classList.remove('live', 'talk');
   $('vm').classList.remove('open'); meterOff();
   const r = rec; rec = null; lastStop = Date.now();
@@ -1847,6 +1850,52 @@ async function meterOn(){
 function meterOff(){
   try { if (meterStream) meterStream.getTracks().forEach(t => t.stop()); if (meterCtx) meterCtx.close(); } catch(e){}
   meterStream = meterCtx = meterAn = null; lvl = 0;
+}
+
+/* ---------- Barge-in: while I am speaking in voice mode, stop at once if the user starts talking ---------- */
+let bargeAn = null, bargeCtx = null, bargeStream = null, bargePoll = null, bargeArmed = false;
+async function bargeArm(){
+  if (!live || bargeArmed || !bargeSettingOn() || !navigator.mediaDevices) return;
+  bargeArmed = true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:false } });
+    if (!live || !document.body.classList.contains('talk') || !bargeSettingOn()){ st.getTracks().forEach(t => t.stop()); bargeArmed = false; return; }
+    bargeStream = st;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    bargeCtx = new AC();
+    try { if (bargeCtx.state === 'suspended') bargeCtx.resume(); } catch(_){}
+    const src = bargeCtx.createMediaStreamSource(bargeStream);
+    bargeAn = bargeCtx.createAnalyser(); bargeAn.fftSize = 512;
+    src.connect(bargeAn);
+    const buf = new Uint8Array(bargeAn.fftSize);
+    const t0 = Date.now();
+    let floor = 0, nf = 0, loudSince = 0;
+    bargePoll = setInterval(() => {
+      if (!bargeArmed || !live || !document.body.classList.contains('talk')){ bargeDisarm(); return; }
+      bargeAn.getByteTimeDomainData(buf);
+      let sum = 0; for (let i = 0; i < buf.length; i++){ const x = (buf[i] - 128) / 128; sum += x * x; }
+      const rms = Math.sqrt(sum / buf.length), now = Date.now();
+      // first ~500ms just calibrates a floor for this utterance (speaker bleed-through included) —
+      // interrupting requires speaking clearly louder than that floor, sustained, not a single blip
+      if (now - t0 < 500){ floor += rms; nf++; return; }
+      const thr = Math.max(.05, (floor / Math.max(1, nf)) * 2.6);
+      if (rms > thr){ if (!loudSince) loudSince = now; if (now - loudSince > 320) bargeTrigger(); }
+      else loudSince = 0;
+    }, 60);
+  } catch(_){ bargeArmed = false; }
+}
+function bargeDisarm(){
+  bargeArmed = false;
+  if (bargePoll) clearInterval(bargePoll); bargePoll = null;
+  try { if (bargeStream) bargeStream.getTracks().forEach(t => t.stop()); if (bargeCtx) bargeCtx.close(); } catch(_){}
+  bargeStream = bargeCtx = bargeAn = null;
+}
+function bargeTrigger(){
+  bargeDisarm();
+  if (!live) return;
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(_){}
+  pend = 0; fin = true;
+  done(sayId);
 }
 
 const wfH = []; let wfT = 0;
@@ -1932,7 +1981,7 @@ async function diag(){
 
 /* ---------- Settings ---------- */
 $('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok;
-  $('rd').value = store.get('read2','full'); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); $('vcused').textContent = 'Last spoke as: ' + (store.get('lastVoiceName','') || 'not yet spoken this session'); dlg.showModal(); };
+  $('rd').value = store.get('read2','full'); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); $('vcused').textContent = 'Last spoke as: ' + (store.get('lastVoiceName','') || 'not yet spoken this session'); refreshBargeBtn(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
@@ -1940,6 +1989,40 @@ $('pshon').onclick = async () => { store.set('pushUrl', $('pshu').value.trim().r
 function greeting(){
   const h = new Date().getHours();
   return h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
+}
+/* ---------- Morning/status briefing: on the first open of the day only, fold weather and any noted plans into the greeting ---------- */
+function briefDoneToday(){ return store.get('lastBriefDay','') === dayKey(); }
+async function briefWeatherLine(){
+  try {
+    const pos = await Promise.race([getPos(), new Promise((_, r) => setTimeout(() => r(new Error('t')), 4000))]);
+    const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + pos.lat + '&longitude=' + pos.lon + '&current=temperature_2m,weather_code&timezone=auto';
+    const j = await (await fetch(u)).json();
+    const c = j.current; if (!c) return '';
+    return Math.round(c.temperature_2m) + ' degrees Celsius and ' + (WMO[c.weather_code] || 'mixed') + ' where you are';
+  } catch(_){ return ''; }
+}
+const SCHED_RE = /\b(today|tomorrow|tonight|this (?:morning|afternoon|evening|week)|monday|tuesday|wednesday|thursday|friday|saturday|sunday|appointment|meeting|deadline|birthday|anniversary)\b/i;
+function scheduleLines(){ return facts().filter(f => SCHED_RE.test(f)).slice(-3); }
+async function statusBriefing(){
+  const w = add('sys', 'One moment, sir…');
+  let weatherLine = ''; try { weatherLine = await briefWeatherLine(); } catch(_){}
+  const sched = scheduleLines();
+  w.remove();
+  const bits = ['Status report, sir.'];
+  bits.push(weatherLine ? ('It is currently ' + weatherLine + '.') : 'I could not reach the weather service just now, sir.');
+  bits.push(sched.length ? ('Noted and relevant just now: ' + sched.map(x => x.replace(/[.!]+$/, '')).join('; ') + '.') : 'Nothing else is flagged for today, sir.');
+  return reply(bits.join(' '));
+}
+const BRIEF_RE = /\b(status (?:report|briefing|update)|morning briefing|daily briefing|give me (?:a |my )?briefing|brief me(?: on (?:today|my day|everything))?)\b/i;
+async function buildBriefingExtra(){
+  if (briefDoneToday()) return '';
+  const bits = [];
+  const w = await briefWeatherLine();
+  if (w) bits.push('It is currently ' + w + '.');
+  const sched = scheduleLines();
+  if (sched.length) bits.push('You also have this noted: ' + sched.map(x => x.replace(/[.!]+$/, '')).join('; ') + '.');
+  if (bits.length) store.set('lastBriefDay', dayKey());
+  return bits.join(' ');
 }
 function welcome(){
   const d = new Date(), h = d.getHours(), wd = d.getDay();
@@ -1970,6 +2053,9 @@ function pickGreeting(pool, bucketKey){
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
 $('vchelpbtn').onclick = () => { const h = $('vchelp'); h.style.display = h.style.display === 'none' ? 'block' : 'none'; };
+function bargeSettingOn(){ return store.get('barge','1') !== '0'; }
+function refreshBargeBtn(){ $('bargeToggle').textContent = 'Interrupt by voice: ' + (bargeSettingOn() ? 'On' : 'Off'); }
+$('bargeToggle').onclick = () => { store.set('barge', bargeSettingOn() ? '0' : '1'); refreshBargeBtn(); if (!bargeSettingOn()) bargeDisarm(); };
 $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('voice', $('vc').value); store.set('read2', $('rd').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Translator ---------- */
@@ -2403,7 +2489,12 @@ $('trListen').onclick = () => {
 })();
 
 {
-  const g = welcome(), gm = add('ai', g);
+  let g = welcome(); const gm = add('ai', g);
+  buildBriefingExtra().then(extra => {
+    if (!extra) return;
+    g = g + ' ' + extra; bootGreeting = g;
+    const body = gm.querySelector('.body'); if (body) renderText(body, g);
+  }).catch(() => {});
   const hint = document.createElement('div'); hint.className = 'boot'; hint.innerHTML = '<i></i><span>Audio core on standby \u00B7 tap anywhere to initiate greeting protocol</span>'; gm.appendChild(hint);
   const engage = () => { bootOn = true; hint.style.visibility = 'visible'; hint.classList.add('go'); hint.querySelector('span').textContent = 'Greeting protocol engaged'; setTimeout(() => { hint.style.opacity = '0'; }, 1500); setTimeout(() => hint.remove(), 2300); };
   bootGreeting = g; const evs = ['click', 'touchend', 'keydown']; let spoke = false;
