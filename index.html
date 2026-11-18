@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-17aw</span></div><span class="by">by DMS (last update: November 17, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-18c</span></div><span class="by">by DMS (last update: November 18, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -198,6 +198,17 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
+  <div class="row"><button id="vchelpbtn">How do I get a better voice?</button></div>
+  <div id="vchelp" style="display:none;font-size:12.5px;color:var(--dim);line-height:1.55;margin:4px 0 10px;padding:9px 10px;border:1px solid var(--line);border-radius:8px">
+    Your phone ships with only a basic, robotic-sounding voice by default. A free, much more natural one is built into iOS, it just needs downloading once:<br><br>
+    1. Open the Settings app (not Jarvis) → Accessibility → Spoken Content<br>
+    2. If there's a Speak Screen toggle, turn it on — some iOS versions only show the voice list once it's on<br>
+    3. Tap Voices → English → the UK/British group<br>
+    4. Tap a voice such as Daniel or Arthur<br>
+    5. Choose "Enhanced Quality" to download it (needs Wi‑Fi, it can be 100MB+)<br><br>
+    Can't find it there? Try instead: Settings → Accessibility → VoiceOver → Speech → Add New Language → choose UK English → tap Voice → pick a voice → Enhanced Quality. Some iOS versions put the download option there instead.<br><br>
+    Once it's downloaded, come back here and pick it from the "Device voice" list above, or just leave it on Default — I already try to pick a British voice automatically when one is available.
+  </div>
   <div class="row"><button id="loc">Allow location</button></div>
   <label for="pshu">Push server URL (optional, for real notifications when closed)</label>
   <input id="pshu" placeholder="https://jarvis-push.your-name.workers.dev" autocomplete="off">
@@ -222,7 +233,7 @@ let wordKick = 0;
 let awaitingAdminPw = false;
 let awaitingMemSave = null;
 let awaitingMemCleanup = null;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 49 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 49 }, { d: '2026-11-18', n: 3 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -1954,6 +1965,7 @@ function pickGreeting(pool, bucketKey){
   return pool[idx];
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
+$('vchelpbtn').onclick = () => { const h = $('vchelp'); h.style.display = h.style.display === 'none' ? 'block' : 'none'; };
 $('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('voice', $('vc').value); store.set('read2', $('rd').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Translator ---------- */
