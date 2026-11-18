@@ -143,7 +143,7 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
 <canvas id="hudt" aria-hidden="true"></canvas>
 <div id="lb"><img alt=""><span></span></div>
 <div id="vm" aria-label="Voice mode"><button id="vmx" aria-label="Close voice mode">&#10005;</button><div id="vmic"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div><div id="vmt">Listening</div></div>
-<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-18c</span></div><span class="by">by DMS (last update: November 18, 2026)</span></div><div class="hbtns">
+<header><div class="brand"><div class="ttl"><h1>JARVIS</h1><span class="mk">MK 11-18d</span></div><span class="by">by DMS (last update: November 18, 2026)</span></div><div class="hbtns">
 <button id="simple" class="icnbtn" aria-pressed="false" aria-label="Simple mode"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.2" r="7"/><circle cx="9.2" cy="12.4" r=".65" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.4" r=".65" fill="currentColor" stroke="none"/><path d="M9 16.1c1.1 1.1 4.9 1.1 6 0"/><path d="M11.3 6.2c-1.1-1.4.3-3.2 1.9-2.3"/></svg></button>
 <button id="trbtn" class="icnbtn" aria-label="Translator"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.8c3 0 5.4 1.8 6.2 4.2"/><path d="M11.2 2.4 8 2.8l1.6 2.8"/><path d="M16 21.2c-3 0-5.4-1.8-6.2-4.2"/><path d="M12.8 21.6 16 21.2l-1.6-2.8"/><text x="1.6" y="16.8" font-size="10.5" font-family="sans-serif" fill="currentColor" stroke="none">文</text><text x="13.6" y="12.6" font-size="10" font-weight="700" font-family="Arial, sans-serif" fill="currentColor" stroke="none">A</text></svg></button>
 <button id="cfg" class="icnbtn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.05 2.05 0 1 1-2.9 2.9l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.05 2.05 0 1 1-2.9-2.9l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.09a1.7 1.7 0 0 0 1.56-1.03 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2.05 2.05 0 1 1 2.9-2.9l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2.05 2.05 0 0 1 4.1 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.05 2.05 0 1 1 2.9 2.9l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2.05 2.05 0 0 1 0 4.1h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
@@ -193,8 +193,6 @@ body.drag #log{outline:2px dashed var(--arc);outline-offset:-8px}
   <label for="ok">OpenAI API key (optional — only if you also want ChatGPT as a backup)</label><input id="ok" type="password" autocomplete="off">
   <label for="mem">Memory (one fact per line)</label><textarea id="mem" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px;font-size:15px"></textarea>
   <label for="rd">Reading aloud</label><select id="rd"><option value="short">Short: the first part only</option><option value="full">Full answer</option></select>
-  <label for="rl">Reply language</label><select id="rl"><option value="en">English (Daniel, default)</option></select>
-  <label for="sp">Speaking speed</label><select id="sp"><option value="1">Normal</option><option value="1.08">A little faster</option><option value="1.15">Faster</option></select>
 
   <label for="vc">Device voice</label><select id="vc"></select>
   <div class="row"><button id="test">Test voice</button><button id="diag">Test connection</button></div>
@@ -233,7 +231,7 @@ let wordKick = 0;
 let awaitingAdminPw = false;
 let awaitingMemSave = null;
 let awaitingMemCleanup = null;
-const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 49 }, { d: '2026-11-18', n: 3 } ];
+const BUILD_LOG = [ { d: '2026-11-16', n: 12 }, { d: '2026-11-17', n: 49 }, { d: '2026-11-18', n: 4 } ];
 function versionText(){
   const badge = (document.querySelector('.mk') || {}).textContent || 'unknown';
   const total = BUILD_LOG.reduce((s, x) => s + x.n, 0);
@@ -1927,8 +1925,8 @@ async function diag(){
 }
 
 /* ---------- Settings ---------- */
-$('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok; { const L = curLang(), rl = $('rl'); rl.innerHTML = '<option value="en">English (Daniel, default)</option>'; if (L){ const o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Current: ' + L.name + ' (you said you do not understand English)'; rl.appendChild(o); rl.value = 'auto'; } }
-  $('sp').value = store.get('sp','1.08'); $('rd').value = store.get('read2','full'); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); dlg.showModal(); };
+$('cfg').onclick = () => { $('usage').textContent = usageText(); const c = cfg(); $('gk').value = c.gk; $('ok').value = c.ok;
+  $('rd').value = store.get('read2','full'); $('mem').value = facts().join('\n'); $('pshu').value = store.get('pushUrl', ''); $('pshst').textContent = store.get('pushSub','') ? 'Push notifications are on for this phone.' : 'Push notifications are off for this phone.'; fillVoices(); dlg.showModal(); };
 $('cancel').onclick = () => dlg.close();
 $('diag').onclick = diag;
 $('loc').onclick = () => { dlg.close(); const w = add('sys', 'Checking your location…'); getPos().then(() => { w.remove(); add('sys', 'Location allowed. I can now find the nearest places for you, sir.'); }).catch(e => { w.remove(); add('sys', e.message); }); };
@@ -1966,7 +1964,7 @@ function pickGreeting(pool, bucketKey){
 }
 $('test').onclick = () => { store.set('voice', $('vc').value); say(greeting() + ', sir. How do I sound?'); };
 $('vchelpbtn').onclick = () => { const h = $('vchelp'); h.style.display = h.style.display === 'none' ? 'block' : 'none'; };
-$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('sp', $('sp').value); if ($('rl').value === 'en') store.set('lang', ''); store.set('voice', $('vc').value); store.set('read2', $('rd').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
+$('save').onclick = () => { store.set('gk', $('gk').value.trim()); store.set('ok', $('ok').value.trim()); store.set('voice', $('vc').value); store.set('read2', $('rd').value); saveFacts($('mem').value.split('\n').map(x => x.trim()).filter(Boolean)); store.set('pushUrl', $('pshu').value.trim().replace(/\/$/, '')); dlg.close(); add('sys', 'Settings saved.'); checkKey(); };
 
 /* ---------- Translator ---------- */
 const TR_LANGS = [
